@@ -72,8 +72,10 @@ class PDFViewer {
         this.ctx = this.canvas.getContext('2d');
         this.pageNumSpan = document.getElementById('pageNum');
         this.pageCountSpan = document.getElementById('pageCount');
+        this.modal = document.getElementById('pdfModal');
         
         this.setupControls();
+        this.setupModal();
     }
 
     setupControls() {
@@ -81,9 +83,47 @@ class PDFViewer {
         document.getElementById('nextPage').addEventListener('click', () => this.nextPage());
     }
 
+    setupModal() {
+        // Close button functionality
+        document.querySelector('.close').addEventListener('click', () => {
+            this.closeModal();
+        });
+
+        // Close modal when clicking outside
+        window.addEventListener('click', (event) => {
+            if (event.target === this.modal) {
+                this.closeModal();
+            }
+        });
+
+        // Handle keyboard events
+        document.addEventListener('keydown', (event) => {
+            if (this.modal.style.display === 'block') {
+                if (event.key === 'Escape') {
+                    this.closeModal();
+                } else if (event.key === 'ArrowLeft') {
+                    this.prevPage();
+                } else if (event.key === 'ArrowRight') {
+                    this.nextPage();
+                }
+            }
+        });
+    }
+
+    openModal() {
+        this.modal.style.display = 'block';
+        document.body.style.overflow = 'hidden'; // Prevent scrolling behind modal
+    }
+
+    closeModal() {
+        this.modal.style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+
     async loadPDF(url) {
         try {
             // Show loading state
+            this.openModal(); // Open modal immediately
             this.canvas.style.opacity = '0.5';
             this.pageNumSpan.textContent = 'Loading...';
             this.pageCountSpan.textContent = '';

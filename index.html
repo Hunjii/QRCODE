@@ -25,13 +25,23 @@
         <div class="pdf-section">
             <h2>PDF Viewer</h2>
             <button id="viewSample">View Sample PDF</button>
-            <div id="pdfViewer">
-                <canvas id="pdfCanvas"></canvas>
-            </div>
-            <div class="pdf-controls">
-                <button id="prevPage">Previous</button>
-                <span id="pageInfo">Page: <span id="pageNum"></span> / <span id="pageCount"></span></span>
-                <button id="nextPage">Next</button>
+        </div>
+        
+        <!-- PDF Modal -->
+        <div id="pdfModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>PDF Viewer</h3>
+                    <span class="close">&times;</span>
+                </div>
+                <div id="pdfViewer">
+                    <canvas id="pdfCanvas"></canvas>
+                </div>
+                <div class="pdf-controls">
+                    <button id="prevPage">Previous</button>
+                    <span id="pageInfo">Page: <span id="pageNum"></span> / <span id="pageCount"></span></span>
+                    <button id="nextPage">Next</button>
+                </div>
             </div>
         </div>
     </div>
