@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Code Scanner & PDF Viewer</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- PDF.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <!-- jsQR library -->
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="scanner-section">
+            <h2>QR Code Scanner</h2>
+            <div class="camera-container">
+                <video id="video" playsinline></video>
+                <canvas id="canvas" style="display: none;"></canvas>
+            </div>
+            <button id="startCamera">Start Camera</button>
+            <div id="output"></div>
+        </div>
+        
+        <div class="pdf-section">
+            <h2>PDF Viewer</h2>
+            <div id="pdfViewer">
+                <canvas id="pdfCanvas"></canvas>
+            </div>
+            <div class="pdf-controls">
+                <button id="prevPage">Previous</button>
+                <span id="pageInfo">Page: <span id="pageNum"></span> / <span id="pageCount"></span></span>
+                <button id="nextPage">Next</button>
+            </div>
+        </div>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html> 
