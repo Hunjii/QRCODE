@@ -91,4 +91,14 @@ button:hover {
     .container {
         grid-template-columns: 1fr;
     }
+}
+
+#viewSample {
+    display: block;
+    margin: 0 auto 15px;
+    background-color: #28a745;
+}
+
+#viewSample:hover {
+    background-color: #218838;
 } 

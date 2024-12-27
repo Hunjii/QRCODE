@@ -1,5 +1,11 @@
-// Initialize PDF.js
+// Initialize PDF.js with proper configuration
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+// Use a reliable PDF URL
+const SAMPLE_PDF = 'https://raw.githubusercontent.com/mozilla/pdf.js/ba2edeae/web/compressed.tracemonkey-pldi-09.pdf';
+// Alternative backup URLs if needed:
+// const SAMPLE_PDF = 'https://arxiv.org/pdf/2212.08011.pdf';
+// const SAMPLE_PDF = 'https://www.adobe.com/content/dam/acom/en/devnet/pdf/pdfs/PDF32000_2008.pdf';
 
 class QRScanner {
     constructor() {
@@ -39,13 +45,19 @@ class QRScanner {
             if (code) {
                 this.scanning = false;
                 this.output.textContent = `QR Code detected: ${code.data}`;
-                // For testing: Use a sample PDF regardless of QR code content
-                const samplePdfUrl = 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf';
-                pdfViewer.loadPDF(samplePdfUrl);
-                // Comment out the original condition
-                // if (code.data.toLowerCase().endsWith('.pdf')) {
-                //     pdfViewer.loadPDF(code.data);
-                // }
+                
+                // Try to load the QR code URL if it's a PDF
+                if (code.data.toLowerCase().endsWith('.pdf')) {
+                    pdfViewer.loadPDF(code.data);
+                } else {
+                    // If not a PDF URL, load the sample PDF
+                    pdfViewer.loadPDF(SAMPLE_PDF);
+                }
+                
+                // Stop the camera after successful scan
+                if (this.video.srcObject) {
+                    this.video.srcObject.getTracks().forEach(track => track.stop());
+                }
             }
         }
         requestAnimationFrame(() => this.scan());
@@ -71,29 +83,70 @@ class PDFViewer {
 
     async loadPDF(url) {
         try {
+            // Show loading state
+            this.canvas.style.opacity = '0.5';
+            this.pageNumSpan.textContent = 'Loading...';
+            this.pageCountSpan.textContent = '';
+            
+            // Try to load the PDF
             const loadingTask = pdfjsLib.getDocument(url);
+            
+            // Add loading progress
+            loadingTask.onProgress = (progress) => {
+                const percent = (progress.loaded / progress.total * 100).toFixed(0);
+                this.pageNumSpan.textContent = `Loading: ${percent}%`;
+            };
+            
             this.pdfDoc = await loadingTask.promise;
+            
+            // Update UI
             this.pageCountSpan.textContent = this.pdfDoc.numPages;
-            this.renderPage(1);
+            await this.renderPage(1);
+            this.canvas.style.opacity = '1';
+            
         } catch (err) {
             console.error('Error loading PDF:', err);
+            this.canvas.style.opacity = '1';
+            this.pageNumSpan.textContent = 'Error';
+            this.pageCountSpan.textContent = '';
+            
+            // Show more specific error message
+            let errorMessage = 'Failed to load PDF. ';
+            if (err.name === 'MissingPDFException') {
+                errorMessage += 'The PDF file could not be found.';
+            } else if (err.name === 'InvalidPDFException') {
+                errorMessage += 'This is not a valid PDF file.';
+            } else if (err.name === 'UnexpectedResponseException') {
+                errorMessage += 'Failed to fetch the PDF file. Please check your internet connection.';
+            }
+            alert(errorMessage);
         }
     }
 
     async renderPage(num) {
-        const page = await this.pdfDoc.getPage(num);
-        const viewport = page.getViewport({ scale: 1.5 });
-        
-        this.canvas.height = viewport.height;
-        this.canvas.width = viewport.width;
+        try {
+            const page = await this.pdfDoc.getPage(num);
+            
+            // Calculate scale to fit the canvas width
+            const viewport = page.getViewport({ scale: 1 });
+            const scale = this.canvas.offsetWidth / viewport.width;
+            const scaledViewport = page.getViewport({ scale });
+            
+            // Update canvas size
+            this.canvas.height = scaledViewport.height;
+            this.canvas.width = scaledViewport.width;
 
-        await page.render({
-            canvasContext: this.ctx,
-            viewport: viewport
-        }).promise;
+            await page.render({
+                canvasContext: this.ctx,
+                viewport: scaledViewport
+            }).promise;
 
-        this.pageNum = num;
-        this.pageNumSpan.textContent = num;
+            this.pageNum = num;
+            this.pageNumSpan.textContent = num;
+        } catch (err) {
+            console.error('Error rendering page:', err);
+            alert('Error rendering PDF page. Please try again.');
+        }
     }
 
     prevPage() {
@@ -114,4 +167,9 @@ const pdfViewer = new PDFViewer();
 // Event listeners
 document.getElementById('startCamera').addEventListener('click', () => {
     qrScanner.startCamera();
+});
+
+// Add sample PDF viewer button
+document.getElementById('viewSample').addEventListener('click', () => {
+    pdfViewer.loadPDF(SAMPLE_PDF);
 }); 
