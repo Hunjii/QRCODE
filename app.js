@@ -55,15 +55,30 @@ class QRScanner {
             if (this.currentStream) {
                 this.stopCamera();
             } else {
-                this.openNativeCamera();
+                // For mobile devices, use native camera
+                if (this.isMobile()) {
+                    this.openNativeCamera();
+                } else {
+                    this.startCamera(); // For desktop, use web camera
+                }
             }
         });
 
-        // Handle file selection
-        this.imageInput.addEventListener('change', (e) => {
+        // Handle file selection or photo capture
+        this.imageInput.addEventListener('change', async (e) => {
             const file = e.target.files[0];
             if (file) {
-                this.processImage(file);
+                // Show loading state
+                this.output.textContent = 'Processing image...';
+                
+                try {
+                    await this.processImage(file);
+                    // Add visual feedback for successful processing
+                    this.output.textContent = 'Image processed. Scanning for QR code...';
+                } catch (err) {
+                    this.output.textContent = 'Error processing image. Please try again.';
+                    console.error('Error:', err);
+                }
             }
             // Reset input to allow selecting the same file again
             this.imageInput.value = '';
@@ -91,15 +106,57 @@ class QRScanner {
         });
     }
 
+    isMobile() {
+        return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    }
+
     async processImage(file) {
         try {
             const image = await this.loadImage(file);
-            this.canvas.width = image.width;
-            this.canvas.height = image.height;
-            this.ctx.drawImage(image, 0, 0);
+            
+            // Scale the image if it's too large
+            const maxDimension = 1920; // Maximum dimension for processing
+            let width = image.width;
+            let height = image.height;
+            
+            if (width > maxDimension || height > maxDimension) {
+                if (width > height) {
+                    height = (height / width) * maxDimension;
+                    width = maxDimension;
+                } else {
+                    width = (width / height) * maxDimension;
+                    height = maxDimension;
+                }
+            }
 
-            const imageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
-            const code = jsQR(imageData.data, imageData.width, imageData.height);
+            // Set canvas dimensions and draw image
+            this.canvas.width = width;
+            this.canvas.height = height;
+            this.ctx.drawImage(image, 0, 0, width, height);
+
+            // Try different scales for better QR detection
+            const scales = [1.0, 1.5, 0.8];
+            let code = null;
+
+            for (const scale of scales) {
+                const scaledWidth = width * scale;
+                const scaledHeight = height * scale;
+                
+                // Create temporary canvas for scaled image
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = scaledWidth;
+                tempCanvas.height = scaledHeight;
+                const tempCtx = tempCanvas.getContext('2d');
+                
+                // Draw scaled image
+                tempCtx.drawImage(image, 0, 0, scaledWidth, scaledHeight);
+                
+                // Get image data and try to detect QR code
+                const imageData = tempCtx.getImageData(0, 0, scaledWidth, scaledHeight);
+                code = jsQR(imageData.data, imageData.width, imageData.height);
+                
+                if (code) break; // Stop if QR code is found
+            }
 
             if (code) {
                 this.output.textContent = `QR Code detected: ${code.data}`;
@@ -108,13 +165,24 @@ class QRScanner {
                 } else {
                     pdfViewer.loadPDF(SAMPLE_PDF);
                 }
+                
+                // Add success feedback
+                this.showSuccessAnimation();
             } else {
-                this.output.textContent = 'No QR code found in the image.';
+                this.output.textContent = 'No QR code found in the image. Please try again.';
             }
         } catch (err) {
             console.error('Error processing image:', err);
             this.output.textContent = 'Error processing image. Please try again.';
         }
+    }
+
+    showSuccessAnimation() {
+        const container = document.querySelector('.camera-container');
+        container.classList.add('success');
+        setTimeout(() => {
+            container.classList.remove('success');
+        }, 1500);
     }
 
     loadImage(file) {
