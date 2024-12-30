@@ -633,4 +633,49 @@ button:hover {
         padding: 12px;
         font-size: 16px;
     }
+}
+
+.camera-container.scanning {
+    background-color: #000;
+    border: none;
+}
+
+.camera-container.scanning::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: rgba(0, 123, 255, 0.5);
+    box-shadow: 0 0 8px #007bff;
+    animation: scan-line 2s linear infinite;
+}
+
+@keyframes scan-line {
+    0% {
+        transform: translateY(-50%) translateY(-100px);
+    }
+    100% {
+        transform: translateY(-50%) translateY(100px);
+    }
+}
+
+/* Scanning guide overlay */
+.camera-container.scanning::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 200px;
+    height: 200px;
+    border: 2px solid rgba(0, 123, 255, 0.5);
+    border-radius: 20px;
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+}
+
+/* Hide placeholder when scanning */
+.camera-container.scanning .camera-placeholder {
+    display: none;
 } 

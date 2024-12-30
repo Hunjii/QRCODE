@@ -7,10 +7,16 @@ const SAMPLE_PDF = 'https://raw.githubusercontent.com/mozilla/pdf.js/ba2edeae/we
 // const SAMPLE_PDF = 'https://arxiv.org/pdf/2212.08011.pdf';
 // const SAMPLE_PDF = 'https://www.adobe.com/content/dam/acom/en/devnet/pdf/pdfs/PDF32000_2008.pdf';
 
-const APP_VERSION = '1.8.0';
+const APP_VERSION = '1.9.0';
 
 // Add changelog for tracking updates
 const CHANGELOG = {
+    '1.9.0': [
+        'Added real-time QR scanning',
+        'Improved camera handling',
+        'Added scanning guide overlay',
+        'Better scanning feedback'
+    ],
     '1.8.0': [
         'Fixed QR code scanning from photos',
         'Added multi-orientation detection',
@@ -366,83 +372,92 @@ class QRScanner {
     }
 
     async startCamera() {
-        // Check if running on mobile
-        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-
-        if (isMobile) {
-            this.openNativeCamera();
-        } else {
-            // Use web camera for desktop
-            try {
+        try {
+            if (this.isMobile() && 'mediaDevices' in navigator && 'getUserMedia' in navigator.mediaDevices) {
+                // Try to use native camera API with real-time scanning
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: {
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 }
+                        facingMode: { exact: "environment" }, // Use back camera
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
                     }
                 });
-                this.setupStream(stream);
-            } catch (err) {
-                console.error('Error accessing camera:', err);
-                this.handleCameraError(err);
+                
+                this.setupNativeScanning(stream);
+            } else {
+                // Fallback to file input method
+                this.openNativeCamera();
             }
+        } catch (err) {
+            console.error('Camera access error:', err);
+            // Fallback to file input method
+            this.openNativeCamera();
         }
     }
 
-    handleCameraError(err) {
-        let errorMessage = 'Error accessing camera. ';
-        
-        switch (err.name) {
-            case 'NotAllowedError':
-                errorMessage += 'Please grant camera permissions.';
-                break;
-            case 'NotFoundError':
-                errorMessage += 'No camera found on your device.';
-                break;
-            case 'NotReadableError':
-                errorMessage += 'Camera is already in use by another application.';
-                break;
-            case 'SecurityError':
-                errorMessage += 'Camera access blocked. Please use HTTPS.';
-                break;
-            default:
-                errorMessage += err.message;
-        }
-        
-        errorHandler.showError(errorMessage);
-    }
-
-    setupStream(stream) {
+    setupNativeScanning(stream) {
         this.currentStream = stream;
         this.video.srcObject = stream;
+        this.video.setAttribute('playsinline', true); // Required for iOS
         
-        // Handle video orientation changes
-        if ('orientation' in window) {
-            window.addEventListener('orientationchange', () => {
-                // Brief timeout to let orientation change complete
-                setTimeout(() => {
-                    this.adjustVideoOrientation();
-                }, 200);
-            });
-        }
+        // Show video element
+        this.video.style.display = 'block';
+        this.video.classList.add('active');
+        document.querySelector('.camera-container').classList.add('scanning');
 
         this.video.onloadedmetadata = () => {
             this.video.play();
             this.scanning = true;
-            this.adjustVideoOrientation();
-            this.scan();
+            this.scanNative();
             
             this.output.textContent = 'Scanning for QR code...';
-            document.getElementById('startCamera').textContent = 'Stop Camera';
+            document.getElementById('takePhoto').innerHTML = '<i class="fas fa-stop"></i> Stop Camera';
         };
     }
 
-    adjustVideoOrientation() {
-        const isPortrait = window.matchMedia("(orientation: portrait)").matches;
-        if (isPortrait) {
-            this.video.style.transform = 'scaleX(-1) rotate(0deg)';
-        } else {
-            this.video.style.transform = 'scaleX(-1) rotate(0deg)';
+    async scanNative() {
+        if (!this.scanning) return;
+
+        try {
+            if (this.video.readyState === this.video.HAVE_ENOUGH_DATA) {
+                // Set canvas dimensions to match video
+                this.canvas.width = this.video.videoWidth;
+                this.canvas.height = this.video.videoHeight;
+                
+                // Draw current video frame
+                this.ctx.drawImage(this.video, 0, 0);
+                
+                // Get image data and scan for QR code
+                const imageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+                const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                    inversionAttempts: "attemptBoth"
+                });
+
+                if (code) {
+                    // QR Code found
+                    this.output.textContent = `QR Code detected: ${code.data}`;
+                    
+                    // Handle PDF URL
+                    if (code.data.toLowerCase().endsWith('.pdf')) {
+                        pdfViewer.loadPDF(code.data);
+                    } else {
+                        pdfViewer.loadPDF(SAMPLE_PDF);
+                    }
+                    
+                    // Show success animation
+                    this.showSuccessAnimation();
+                    
+                    // Stop scanning
+                    this.stopCamera();
+                    return;
+                }
+            }
+        } catch (err) {
+            console.error('Scanning error:', err);
         }
+
+        // Continue scanning
+        requestAnimationFrame(() => this.scanNative());
     }
 
     stopCamera() {
@@ -451,39 +466,15 @@ class QRScanner {
             this.currentStream = null;
             this.video.srcObject = null;
             this.scanning = false;
-            this.output.textContent = 'Camera stopped';
-            document.getElementById('startCamera').textContent = 'Start Camera';
-        }
-    }
-
-    scan() {
-        if (!this.scanning) return;
-
-        if (this.video.readyState === this.video.HAVE_ENOUGH_DATA) {
-            this.canvas.width = this.video.videoWidth;
-            this.canvas.height = this.video.videoHeight;
-            this.ctx.drawImage(this.video, 0, 0, this.canvas.width, this.canvas.height);
             
-            const imageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
-            const code = jsQR(imageData.data, imageData.width, imageData.height);
-
-            if (code) {
-                this.output.textContent = `QR Code detected: ${code.data}`;
-                
-                // Try to load the QR code URL if it's a PDF
-                if (code.data.toLowerCase().endsWith('.pdf')) {
-                    pdfViewer.loadPDF(code.data);
-                } else {
-                    // If not a PDF URL, load the sample PDF
-                    pdfViewer.loadPDF(SAMPLE_PDF);
-                }
-                
-                // Stop the camera after successful scan
-                this.stopCamera();
-                return;
-            }
+            // Reset UI
+            this.video.style.display = 'none';
+            this.video.classList.remove('active');
+            document.querySelector('.camera-container').classList.remove('scanning');
+            document.getElementById('takePhoto').innerHTML = '<i class="fas fa-camera"></i> Take Photo';
+            
+            this.output.textContent = 'Camera stopped';
         }
-        requestAnimationFrame(() => this.scan());
     }
 }
 
