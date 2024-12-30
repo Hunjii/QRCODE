@@ -7,10 +7,16 @@ const SAMPLE_PDF = 'https://raw.githubusercontent.com/mozilla/pdf.js/ba2edeae/we
 // const SAMPLE_PDF = 'https://arxiv.org/pdf/2212.08011.pdf';
 // const SAMPLE_PDF = 'https://www.adobe.com/content/dam/acom/en/devnet/pdf/pdfs/PDF32000_2008.pdf';
 
-const APP_VERSION = '1.2.0';
+const APP_VERSION = '1.3.0';
 
 // Add changelog for tracking updates
 const CHANGELOG = {
+    '1.3.0': [
+        'Added native camera support for mobile devices',
+        'Improved QR code detection with multi-scale scanning',
+        'Added success animation feedback',
+        'Enhanced image processing capabilities'
+    ],
     '1.2.0': [
         'Added image upload functionality',
         'Added drag and drop support',
