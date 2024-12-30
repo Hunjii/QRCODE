@@ -7,10 +7,16 @@ const SAMPLE_PDF = 'https://raw.githubusercontent.com/mozilla/pdf.js/ba2edeae/we
 // const SAMPLE_PDF = 'https://arxiv.org/pdf/2212.08011.pdf';
 // const SAMPLE_PDF = 'https://www.adobe.com/content/dam/acom/en/devnet/pdf/pdfs/PDF32000_2008.pdf';
 
-const APP_VERSION = '1.1.0';
+const APP_VERSION = '1.2.0';
 
 // Add changelog for tracking updates
 const CHANGELOG = {
+    '1.2.0': [
+        'Added image upload functionality',
+        'Added drag and drop support',
+        'New UI with improved buttons',
+        'Support for selecting images from device'
+    ],
     '1.1.0': [
         'Improved mobile camera handling',
         'Added auto-focus and exposure optimization',
@@ -30,8 +36,96 @@ class QRScanner {
         this.canvas = document.getElementById('canvas');
         this.ctx = this.canvas.getContext('2d');
         this.output = document.getElementById('output');
+        this.imageInput = document.getElementById('imageInput');
         this.scanning = false;
         this.currentStream = null;
+        
+        this.setupEventListeners();
+    }
+
+    setupEventListeners() {
+        // Select image button
+        document.getElementById('selectImage').addEventListener('click', () => {
+            this.imageInput.click();
+        });
+
+        // Take photo button
+        document.getElementById('takePhoto').addEventListener('click', () => {
+            if (this.currentStream) {
+                this.stopCamera();
+            } else {
+                this.startCamera();
+            }
+        });
+
+        // Handle file selection
+        this.imageInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                this.processImage(file);
+            }
+        });
+
+        // Setup drag and drop
+        const container = document.querySelector('.camera-container');
+        
+        container.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            container.classList.add('dragging');
+        });
+
+        container.addEventListener('dragleave', () => {
+            container.classList.remove('dragging');
+        });
+
+        container.addEventListener('drop', (e) => {
+            e.preventDefault();
+            container.classList.remove('dragging');
+            const file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) {
+                this.processImage(file);
+            }
+        });
+    }
+
+    async processImage(file) {
+        try {
+            const image = await this.loadImage(file);
+            this.canvas.width = image.width;
+            this.canvas.height = image.height;
+            this.ctx.drawImage(image, 0, 0);
+
+            const imageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+            const code = jsQR(imageData.data, imageData.width, imageData.height);
+
+            if (code) {
+                this.output.textContent = `QR Code detected: ${code.data}`;
+                if (code.data.toLowerCase().endsWith('.pdf')) {
+                    pdfViewer.loadPDF(code.data);
+                } else {
+                    pdfViewer.loadPDF(SAMPLE_PDF);
+                }
+            } else {
+                this.output.textContent = 'No QR code found in the image.';
+            }
+        } catch (err) {
+            console.error('Error processing image:', err);
+            this.output.textContent = 'Error processing image. Please try again.';
+        }
+    }
+
+    loadImage(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const image = new Image();
+                image.onload = () => resolve(image);
+                image.onerror = reject;
+                image.src = e.target.result;
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
     }
 
     async startCamera() {

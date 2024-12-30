@@ -37,8 +37,18 @@ h2 {
     margin: 0 auto;
     position: relative;
     aspect-ratio: 16/9;
-    background-color: #000;
+    background-color: #f8f9fa;
+    border: 2px dashed #dee2e6;
+    border-radius: 8px;
     overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.camera-container.dragging {
+    background-color: #e9ecef;
+    border-color: #007bff;
 }
 
 #video {
@@ -257,4 +267,40 @@ button:hover {
         max-width: 250px;
         right: -5px;
     }
+}
+
+.scanner-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin: 15px 0;
+}
+
+.scanner-buttons button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+}
+
+.scanner-buttons button i {
+    font-size: 16px;
+}
+
+#selectImage {
+    background-color: #28a745;
+}
+
+#selectImage:hover {
+    background-color: #218838;
+}
+
+#takePhoto {
+    background-color: #007bff;
+}
+
+#takePhoto:hover {
+    background-color: #0056b3;
 } 

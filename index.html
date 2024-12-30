@@ -9,6 +9,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" crossorigin="anonymous"></script>
     <!-- jsQR library -->
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 </head>
 <body>
     <div class="container">
@@ -26,10 +27,18 @@
         <div class="scanner-section">
             <h2>QR Code Scanner</h2>
             <div class="camera-container">
+                <input type="file" id="imageInput" accept="image/*" capture="environment" style="display: none;">
                 <video id="video" playsinline></video>
                 <canvas id="canvas" style="display: none;"></canvas>
             </div>
-            <button id="startCamera">Start Camera</button>
+            <div class="scanner-buttons">
+                <button id="selectImage">
+                    <i class="fas fa-images"></i> Select Image
+                </button>
+                <button id="takePhoto">
+                    <i class="fas fa-camera"></i> Take Photo
+                </button>
+            </div>
             <div id="output"></div>
         </div>
         
