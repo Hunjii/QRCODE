@@ -27,9 +27,13 @@
         <div class="scanner-section">
             <h2>QR Code Scanner</h2>
             <div class="camera-container">
-                <input type="file" id="imageInput" accept="image/*" capture="environment" style="display: none;">
+                <input type="file" id="imageInput" accept="image/*" style="display: none;">
                 <video id="video" playsinline></video>
                 <canvas id="canvas" style="display: none;"></canvas>
+                <div class="camera-placeholder">
+                    <i class="fas fa-camera"></i>
+                    <p>Click buttons below to take photo or select image</p>
+                </div>
             </div>
             <div class="scanner-buttons">
                 <button id="selectImage">

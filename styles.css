@@ -303,4 +303,37 @@ button:hover {
 
 #takePhoto:hover {
     background-color: #0056b3;
+}
+
+.camera-placeholder {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    color: #6c757d;
+}
+
+.camera-placeholder i {
+    font-size: 48px;
+    margin-bottom: 10px;
+}
+
+.camera-placeholder p {
+    margin: 0;
+    font-size: 14px;
+}
+
+/* Hide placeholder when video is active */
+.camera-container.active .camera-placeholder {
+    display: none;
+}
+
+/* Update video styles */
+#video {
+    display: none;
+}
+
+#video.active {
+    display: block;
 } 

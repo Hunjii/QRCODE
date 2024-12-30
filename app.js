@@ -46,15 +46,16 @@ class QRScanner {
     setupEventListeners() {
         // Select image button
         document.getElementById('selectImage').addEventListener('click', () => {
+            this.imageInput.removeAttribute('capture');
             this.imageInput.click();
         });
 
-        // Take photo button
+        // Take photo button - use native camera
         document.getElementById('takePhoto').addEventListener('click', () => {
             if (this.currentStream) {
                 this.stopCamera();
             } else {
-                this.startCamera();
+                this.openNativeCamera();
             }
         });
 
@@ -64,6 +65,8 @@ class QRScanner {
             if (file) {
                 this.processImage(file);
             }
+            // Reset input to allow selecting the same file again
+            this.imageInput.value = '';
         });
 
         // Setup drag and drop
@@ -128,46 +131,21 @@ class QRScanner {
         });
     }
 
+    openNativeCamera() {
+        // Set capture attribute to use native camera
+        this.imageInput.setAttribute('capture', 'environment');
+        this.imageInput.click();
+    }
+
     async startCamera() {
-        try {
-            // Check if running on mobile
-            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        // Check if running on mobile
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
-            if (isMobile) {
-                // For mobile devices, try to use the native camera app if possible
-                const constraints = {
-                    video: {
-                        facingMode: { ideal: 'environment' }, // Prefer back camera
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 },
-                        // Add advanced mobile constraints
-                        aspectRatio: { ideal: 1.7777777778 },
-                        frameRate: { ideal: 30 },
-                        // Enable auto-focus and auto-exposure
-                        focusMode: { ideal: 'continuous' },
-                        exposureMode: { ideal: 'continuous' },
-                        // Optimize for QR scanning
-                        whiteBalanceMode: { ideal: 'continuous' }
-                    }
-                };
-
-                try {
-                    // First try to get the back camera
-                    const stream = await navigator.mediaDevices.getUserMedia({
-                        video: {
-                            ...constraints.video,
-                            facingMode: { exact: 'environment' } // Force back camera
-                        }
-                    });
-                    this.setupStream(stream);
-                } catch (err) {
-                    console.log('Back camera failed, trying any available camera:', err);
-                    // If back camera fails, try any camera
-                    const stream = await navigator.mediaDevices.getUserMedia(constraints);
-                    this.setupStream(stream);
-                }
-            } else {
-                // For desktop, use simpler constraints
+        if (isMobile) {
+            this.openNativeCamera();
+        } else {
+            // Use web camera for desktop
+            try {
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: {
                         width: { ideal: 1280 },
@@ -175,23 +153,34 @@ class QRScanner {
                     }
                 });
                 this.setupStream(stream);
-            }
-        } catch (err) {
-            console.error('Error accessing camera:', err);
-            
-            // More detailed error messages
-            if (err.name === 'NotAllowedError') {
-                this.output.textContent = 'Camera access denied. Please grant camera permissions.';
-            } else if (err.name === 'NotFoundError') {
-                this.output.textContent = 'No camera found on your device.';
-            } else if (err.name === 'NotReadableError') {
-                this.output.textContent = 'Camera is already in use by another application.';
-            } else if (err.name === 'SecurityError') {
-                this.output.textContent = 'Camera access blocked. Please use HTTPS.';
-            } else {
-                this.output.textContent = `Error accessing camera: ${err.message}`;
+            } catch (err) {
+                console.error('Error accessing camera:', err);
+                this.handleCameraError(err);
             }
         }
+    }
+
+    handleCameraError(err) {
+        let errorMessage = 'Error accessing camera. ';
+        
+        switch (err.name) {
+            case 'NotAllowedError':
+                errorMessage += 'Please grant camera permissions.';
+                break;
+            case 'NotFoundError':
+                errorMessage += 'No camera found on your device.';
+                break;
+            case 'NotReadableError':
+                errorMessage += 'Camera is already in use by another application.';
+                break;
+            case 'SecurityError':
+                errorMessage += 'Camera access blocked. Please use HTTPS.';
+                break;
+            default:
+                errorMessage += err.message;
+        }
+        
+        this.output.textContent = errorMessage;
     }
 
     setupStream(stream) {
