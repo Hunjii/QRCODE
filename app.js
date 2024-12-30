@@ -7,10 +7,16 @@ const SAMPLE_PDF = 'https://raw.githubusercontent.com/mozilla/pdf.js/ba2edeae/we
 // const SAMPLE_PDF = 'https://arxiv.org/pdf/2212.08011.pdf';
 // const SAMPLE_PDF = 'https://www.adobe.com/content/dam/acom/en/devnet/pdf/pdfs/PDF32000_2008.pdf';
 
-const APP_VERSION = '1.5.0';
+const APP_VERSION = '1.6.0';
 
 // Add changelog for tracking updates
 const CHANGELOG = {
+    '1.6.0': [
+        'Improved QR code detection reliability',
+        'Added multiple image processing strategies',
+        'Enhanced image quality handling',
+        'Better handling of camera captures'
+    ],
     '1.5.0': [
         'Added error modal for better error handling',
         'Improved error messages and feedback',
@@ -175,8 +181,8 @@ class QRScanner {
 
             const image = await this.loadImage(file);
             
-            // Try to detect QR code with different strategies
-            let code = await this.detectQRCode(image);
+            // Try multiple detection strategies
+            const code = await this.detectQRCodeWithStrategies(image);
 
             if (code) {
                 this.output.textContent = `QR Code detected: ${code.data}`;
@@ -186,11 +192,10 @@ class QRScanner {
                     pdfViewer.loadPDF(SAMPLE_PDF);
                 }
                 
-                // Show success animation
                 container.classList.remove('processing');
                 this.showSuccessAnimation();
             } else {
-                this.output.textContent = 'No QR code found. Try taking a clearer photo.';
+                errorHandler.showError('No QR code found. Please try again with a clearer photo.');
                 container.classList.remove('processing');
             }
         } catch (err) {
@@ -200,36 +205,57 @@ class QRScanner {
         }
     }
 
-    async detectQRCode(image) {
-        // Try different image processing strategies
+    async detectQRCodeWithStrategies(image) {
+        // Define multiple processing strategies
         const strategies = [
-            { scale: 1.0, brightness: 0 },
-            { scale: 1.5, brightness: 0 },
-            { scale: 0.8, brightness: 0 },
-            { scale: 1.0, brightness: 30 },  // Brighten image
-            { scale: 1.0, brightness: -30 }  // Darken image
+            // Original size
+            { scale: 1.0, brightness: 0, contrast: 100 },
+            // Larger size
+            { scale: 1.5, brightness: 0, contrast: 100 },
+            // Smaller size
+            { scale: 0.8, brightness: 0, contrast: 100 },
+            // Brightness adjustments
+            { scale: 1.0, brightness: 30, contrast: 100 },
+            { scale: 1.0, brightness: -30, contrast: 100 },
+            // Contrast adjustments
+            { scale: 1.0, brightness: 0, contrast: 150 },
+            { scale: 1.0, brightness: 0, contrast: 75 },
+            // Combined adjustments
+            { scale: 1.2, brightness: 20, contrast: 120 },
+            { scale: 0.9, brightness: -10, contrast: 110 }
         ];
 
         for (const strategy of strategies) {
             const tempCanvas = document.createElement('canvas');
             const tempCtx = tempCanvas.getContext('2d');
 
-            // Scale the image
-            const width = image.width * strategy.scale;
-            const height = image.height * strategy.scale;
+            // Calculate dimensions
+            const width = Math.floor(image.width * strategy.scale);
+            const height = Math.floor(image.height * strategy.scale);
+            
+            // Set canvas size
             tempCanvas.width = width;
             tempCanvas.height = height;
 
-            // Draw and process the image
-            tempCtx.filter = `brightness(${100 + strategy.brightness}%)`;
+            // Apply image processing
+            tempCtx.filter = `brightness(${100 + strategy.brightness}%) contrast(${strategy.contrast}%)`;
+            
+            // Draw image with current strategy
             tempCtx.drawImage(image, 0, 0, width, height);
-            
-            // Get image data and try to detect QR code
-            const imageData = tempCtx.getImageData(0, 0, width, height);
-            const code = jsQR(imageData.data, imageData.width, imageData.height);
-            
-            if (code) {
-                return code;
+
+            try {
+                // Get image data and attempt QR detection
+                const imageData = tempCtx.getImageData(0, 0, width, height);
+                const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                    inversionAttempts: "attemptBoth"
+                });
+
+                if (code) {
+                    return code;
+                }
+            } catch (err) {
+                console.log(`Strategy failed: Scale=${strategy.scale}, Brightness=${strategy.brightness}, Contrast=${strategy.contrast}`);
+                continue;
             }
         }
 
@@ -249,7 +275,21 @@ class QRScanner {
             const reader = new FileReader();
             reader.onload = (e) => {
                 const image = new Image();
-                image.onload = () => resolve(image);
+                image.onload = () => {
+                    // Normalize image orientation
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    
+                    // Set proper dimensions
+                    canvas.width = image.width;
+                    canvas.height = image.height;
+                    
+                    // Draw and export normalized image
+                    ctx.drawImage(image, 0, 0);
+                    const normalizedImage = new Image();
+                    normalizedImage.onload = () => resolve(normalizedImage);
+                    normalizedImage.src = canvas.toDataURL('image/jpeg', 1.0);
+                };
                 image.onerror = reject;
                 image.src = e.target.result;
             };
