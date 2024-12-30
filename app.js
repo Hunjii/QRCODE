@@ -14,20 +14,63 @@ class QRScanner {
         this.ctx = this.canvas.getContext('2d');
         this.output = document.getElementById('output');
         this.scanning = false;
+        this.currentStream = null; // Track current camera stream
     }
 
     async startCamera() {
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ 
-                video: { facingMode: "environment" } 
-            });
-            this.video.srcObject = stream;
+            // First try to get the back camera (preferred for QR scanning)
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: { exact: "environment" }, // Force back camera
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }
+                });
+                this.setupStream(stream);
+            } catch (err) {
+                // If back camera fails, try any available camera
+                console.log('Back camera not available, trying front camera...');
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }
+                });
+                this.setupStream(stream);
+            }
+        } catch (err) {
+            console.error('Error accessing camera:', err);
+            this.output.textContent = 'Error accessing camera. Please ensure camera permissions are granted and you are using HTTPS.';
+        }
+    }
+
+    setupStream(stream) {
+        // Store current stream
+        this.currentStream = stream;
+        this.video.srcObject = stream;
+        
+        // Play video when metadata is loaded
+        this.video.onloadedmetadata = () => {
             this.video.play();
             this.scanning = true;
             this.scan();
-        } catch (err) {
-            console.error('Error accessing camera:', err);
-            this.output.textContent = 'Error accessing camera. Please ensure camera permissions are granted.';
+            
+            // Update UI to show scanning is active
+            this.output.textContent = 'Scanning for QR code...';
+            document.getElementById('startCamera').textContent = 'Stop Camera';
+        };
+    }
+
+    stopCamera() {
+        if (this.currentStream) {
+            this.currentStream.getTracks().forEach(track => track.stop());
+            this.currentStream = null;
+            this.video.srcObject = null;
+            this.scanning = false;
+            this.output.textContent = 'Camera stopped';
+            document.getElementById('startCamera').textContent = 'Start Camera';
         }
     }
 
@@ -43,7 +86,6 @@ class QRScanner {
             const code = jsQR(imageData.data, imageData.width, imageData.height);
 
             if (code) {
-                this.scanning = false;
                 this.output.textContent = `QR Code detected: ${code.data}`;
                 
                 // Try to load the QR code URL if it's a PDF
@@ -55,9 +97,8 @@ class QRScanner {
                 }
                 
                 // Stop the camera after successful scan
-                if (this.video.srcObject) {
-                    this.video.srcObject.getTracks().forEach(track => track.stop());
-                }
+                this.stopCamera();
+                return;
             }
         }
         requestAnimationFrame(() => this.scan());
@@ -206,7 +247,11 @@ const pdfViewer = new PDFViewer();
 
 // Event listeners
 document.getElementById('startCamera').addEventListener('click', () => {
-    qrScanner.startCamera();
+    if (qrScanner.currentStream) {
+        qrScanner.stopCamera();
+    } else {
+        qrScanner.startCamera();
+    }
 });
 
 // Add sample PDF viewer button
