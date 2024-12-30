@@ -7,7 +7,7 @@ const SAMPLE_PDF = 'https://raw.githubusercontent.com/mozilla/pdf.js/ba2edeae/we
 // const SAMPLE_PDF = 'https://arxiv.org/pdf/2212.08011.pdf';
 // const SAMPLE_PDF = 'https://www.adobe.com/content/dam/acom/en/devnet/pdf/pdfs/PDF32000_2008.pdf';
 
-const APP_VERSION = '1.9.1';
+const APP_VERSION = '1.9.2';
 
 // Define ErrorHandler class first
 class ErrorHandler {
@@ -69,6 +69,12 @@ const errorHandler = new ErrorHandler();
 
 // Add changelog for tracking updates
 const CHANGELOG = {
+    '1.9.2': [
+        'Fixed native camera access',
+        'Improved camera error handling',
+        'Better mobile camera support',
+        'Enhanced scanning reliability'
+    ],
     '1.9.1': [
         'Fixed error handler initialization',
         'Improved code organization',
@@ -379,34 +385,47 @@ class QRScanner {
 
     async startCamera() {
         try {
-            if (this.isMobile() && 'mediaDevices' in navigator && 'getUserMedia' in navigator.mediaDevices) {
-                // Try to use native camera API with real-time scanning
+            if (this.isMobile()) {
+                // For mobile devices, try to use the native camera API
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({
+                        video: {
+                            facingMode: { exact: "environment" }, // Force back camera
+                            width: { ideal: 1920 },
+                            height: { ideal: 1080 }
+                        }
+                    });
+                    this.setupNativeScanning(stream);
+                } catch (err) {
+                    console.log('Back camera failed, trying any camera:', err);
+                    // If back camera fails, try any camera
+                    const stream = await navigator.mediaDevices.getUserMedia({
+                        video: true
+                    });
+                    this.setupNativeScanning(stream);
+                }
+            } else {
+                // For desktop
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: {
-                        facingMode: { exact: "environment" }, // Use back camera
-                        width: { ideal: 1920 },
-                        height: { ideal: 1080 }
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
                     }
                 });
-                
                 this.setupNativeScanning(stream);
-            } else {
-                // Fallback to file input method
-                this.openNativeCamera();
             }
         } catch (err) {
             console.error('Camera access error:', err);
-            // Fallback to file input method
-            this.openNativeCamera();
+            errorHandler.showError('Could not access camera. Please check permissions and try again.');
         }
     }
 
     setupNativeScanning(stream) {
         this.currentStream = stream;
         this.video.srcObject = stream;
-        this.video.setAttribute('playsinline', true); // Required for iOS
+        this.video.setAttribute('playsinline', true);
         
-        // Show video element
+        // Show video element and scanning UI
         this.video.style.display = 'block';
         this.video.classList.add('active');
         document.querySelector('.camera-container').classList.add('scanning');
@@ -450,16 +469,17 @@ class QRScanner {
                         pdfViewer.loadPDF(SAMPLE_PDF);
                     }
                     
-                    // Show success animation
+                    // Show success animation and stop camera
                     this.showSuccessAnimation();
-                    
-                    // Stop scanning
                     this.stopCamera();
                     return;
                 }
             }
         } catch (err) {
             console.error('Scanning error:', err);
+            errorHandler.showError('Error scanning QR code. Please try again.');
+            this.stopCamera();
+            return;
         }
 
         // Continue scanning
