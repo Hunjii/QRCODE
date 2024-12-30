@@ -166,25 +166,35 @@ button:hover {
     top: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0,0,0,0.7);
+    background-color: rgba(0,0,0,0.9);
+    overflow: hidden;
 }
 
 .modal-content {
     background-color: #fefefe;
-    margin: 2% auto;
-    padding: 20px;
-    border-radius: 8px;
-    width: 90%;
-    max-width: 1200px;
-    max-height: 95vh;
-    overflow: auto;
+    margin: 0;
+    padding: 15px;
+    border-radius: 0;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    max-height: none;
+    display: flex;
+    flex-direction: column;
+    position: relative;
 }
 
 .modal-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 15px;
+    padding: 10px 0;
+    margin-bottom: 10px;
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 18px;
 }
 
 .close {
@@ -192,16 +202,100 @@ button:hover {
     font-size: 28px;
     font-weight: bold;
     cursor: pointer;
+    padding: 0 10px;
 }
 
-.close:hover {
-    color: #000;
-}
-
-/* Update PDF viewer styles for modal */
 #pdfViewer {
-    height: calc(80vh - 100px);
+    flex: 1;
+    width: 100%;
+    height: auto;
+    overflow: auto;
     margin: 0;
+    position: relative;
+    background: #f0f0f0;
+}
+
+#pdfCanvas {
+    margin: 0 auto;
+    display: block;
+    max-width: 100%;
+    height: auto;
+}
+
+.pdf-controls {
+    padding: 10px 0;
+    background: #fff;
+    border-top: 1px solid #ddd;
+}
+
+/* Desktop styles */
+@media (min-width: 768px) {
+    .modal-content {
+        margin: 2% auto;
+        padding: 20px;
+        border-radius: 8px;
+        width: 90%;
+        height: auto;
+        max-width: 1200px;
+        max-height: 95vh;
+    }
+
+    #pdfViewer {
+        height: calc(80vh - 100px);
+    }
+
+    .modal-header h3 {
+        font-size: 24px;
+    }
+
+    .pdf-controls {
+        border-top: none;
+    }
+}
+
+/* Improve PDF controls for mobile */
+.pdf-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+}
+
+.pdf-controls button {
+    padding: 8px 15px;
+    font-size: 14px;
+    min-width: 80px;
+}
+
+#pageInfo {
+    font-size: 14px;
+    white-space: nowrap;
+}
+
+/* Handle orientation changes */
+@media screen and (orientation: landscape) and (max-height: 500px) {
+    .modal-content {
+        padding: 10px;
+    }
+
+    .modal-header {
+        padding: 5px 0;
+        margin-bottom: 5px;
+    }
+
+    .modal-header h3 {
+        font-size: 16px;
+    }
+
+    .pdf-controls {
+        padding: 5px 0;
+    }
+
+    .pdf-controls button {
+        padding: 5px 10px;
+        font-size: 12px;
+    }
 }
 
 .version-info {
