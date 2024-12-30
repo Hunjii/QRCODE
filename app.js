@@ -7,10 +7,16 @@ const SAMPLE_PDF = 'https://raw.githubusercontent.com/mozilla/pdf.js/ba2edeae/we
 // const SAMPLE_PDF = 'https://arxiv.org/pdf/2212.08011.pdf';
 // const SAMPLE_PDF = 'https://www.adobe.com/content/dam/acom/en/devnet/pdf/pdfs/PDF32000_2008.pdf';
 
-const APP_VERSION = '1.3.0';
+const APP_VERSION = '1.4.0';
 
 // Add changelog for tracking updates
 const CHANGELOG = {
+    '1.4.0': [
+        'Improved QR code detection from camera photos',
+        'Added multiple detection strategies',
+        'Enhanced image processing with brightness adjustment',
+        'Better feedback during photo processing'
+    ],
     '1.3.0': [
         'Added native camera support for mobile devices',
         'Improved QR code detection with multi-scale scanning',
@@ -118,51 +124,15 @@ class QRScanner {
 
     async processImage(file) {
         try {
+            // Show processing state
+            const container = document.querySelector('.camera-container');
+            container.classList.add('processing');
+            this.output.textContent = 'Processing image...';
+
             const image = await this.loadImage(file);
             
-            // Scale the image if it's too large
-            const maxDimension = 1920; // Maximum dimension for processing
-            let width = image.width;
-            let height = image.height;
-            
-            if (width > maxDimension || height > maxDimension) {
-                if (width > height) {
-                    height = (height / width) * maxDimension;
-                    width = maxDimension;
-                } else {
-                    width = (width / height) * maxDimension;
-                    height = maxDimension;
-                }
-            }
-
-            // Set canvas dimensions and draw image
-            this.canvas.width = width;
-            this.canvas.height = height;
-            this.ctx.drawImage(image, 0, 0, width, height);
-
-            // Try different scales for better QR detection
-            const scales = [1.0, 1.5, 0.8];
-            let code = null;
-
-            for (const scale of scales) {
-                const scaledWidth = width * scale;
-                const scaledHeight = height * scale;
-                
-                // Create temporary canvas for scaled image
-                const tempCanvas = document.createElement('canvas');
-                tempCanvas.width = scaledWidth;
-                tempCanvas.height = scaledHeight;
-                const tempCtx = tempCanvas.getContext('2d');
-                
-                // Draw scaled image
-                tempCtx.drawImage(image, 0, 0, scaledWidth, scaledHeight);
-                
-                // Get image data and try to detect QR code
-                const imageData = tempCtx.getImageData(0, 0, scaledWidth, scaledHeight);
-                code = jsQR(imageData.data, imageData.width, imageData.height);
-                
-                if (code) break; // Stop if QR code is found
-            }
+            // Try to detect QR code with different strategies
+            let code = await this.detectQRCode(image);
 
             if (code) {
                 this.output.textContent = `QR Code detected: ${code.data}`;
@@ -172,15 +142,54 @@ class QRScanner {
                     pdfViewer.loadPDF(SAMPLE_PDF);
                 }
                 
-                // Add success feedback
+                // Show success animation
+                container.classList.remove('processing');
                 this.showSuccessAnimation();
             } else {
-                this.output.textContent = 'No QR code found in the image. Please try again.';
+                this.output.textContent = 'No QR code found. Try taking a clearer photo.';
+                container.classList.remove('processing');
             }
         } catch (err) {
             console.error('Error processing image:', err);
             this.output.textContent = 'Error processing image. Please try again.';
+            document.querySelector('.camera-container').classList.remove('processing');
         }
+    }
+
+    async detectQRCode(image) {
+        // Try different image processing strategies
+        const strategies = [
+            { scale: 1.0, brightness: 0 },
+            { scale: 1.5, brightness: 0 },
+            { scale: 0.8, brightness: 0 },
+            { scale: 1.0, brightness: 30 },  // Brighten image
+            { scale: 1.0, brightness: -30 }  // Darken image
+        ];
+
+        for (const strategy of strategies) {
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+
+            // Scale the image
+            const width = image.width * strategy.scale;
+            const height = image.height * strategy.scale;
+            tempCanvas.width = width;
+            tempCanvas.height = height;
+
+            // Draw and process the image
+            tempCtx.filter = `brightness(${100 + strategy.brightness}%)`;
+            tempCtx.drawImage(image, 0, 0, width, height);
+            
+            // Get image data and try to detect QR code
+            const imageData = tempCtx.getImageData(0, 0, width, height);
+            const code = jsQR(imageData.data, imageData.width, imageData.height);
+            
+            if (code) {
+                return code;
+            }
+        }
+
+        return null;
     }
 
     showSuccessAnimation() {
@@ -206,8 +215,10 @@ class QRScanner {
     }
 
     openNativeCamera() {
-        // Set capture attribute to use native camera
+        // Force environment camera (back camera) for better QR scanning
         this.imageInput.setAttribute('capture', 'environment');
+        this.imageInput.setAttribute('accept', 'image/*');
+        this.output.textContent = 'Opening camera...';
         this.imageInput.click();
     }
 

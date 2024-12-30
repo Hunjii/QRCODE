@@ -367,4 +367,34 @@ button:hover {
     border: 1px solid #dee2e6;
     text-align: center;
     min-height: 45px;
+}
+
+.camera-container.processing::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5) url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid"><circle cx="50" cy="50" fill="none" stroke="%23ffffff" stroke-width="10" r="35" stroke-dasharray="164.93361431346415 56.97787143782138"><animateTransform attributeName="transform" type="rotate" repeatCount="indefinite" dur="1s" values="0 50 50;360 50 50" keyTimes="0;1"/></circle></svg>') center/50px no-repeat;
+    z-index: 10;
+}
+
+.camera-container.success {
+    animation: success-pulse 1.5s ease-out;
+}
+
+@keyframes success-pulse {
+    0% { 
+        border-color: #28a745; 
+        box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.4);
+    }
+    70% { 
+        border-color: #28a745; 
+        box-shadow: 0 0 0 10px rgba(40, 167, 69, 0);
+    }
+    100% { 
+        border-color: #dee2e6; 
+        box-shadow: 0 0 0 0 rgba(40, 167, 69, 0);
+    }
 } 
