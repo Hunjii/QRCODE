@@ -591,4 +591,46 @@ button:hover {
         margin: 30% auto;
         width: 90%;
     }
+}
+
+/* Error Modal Animation Styles */
+.error-modal {
+    opacity: 1;
+    transition: opacity 0.3s ease-out;
+}
+
+.error-modal.fade-out {
+    opacity: 0;
+}
+
+.error-modal-content {
+    transform: translateY(0);
+    transition: transform 0.3s ease-out;
+}
+
+.error-modal.fade-out .error-modal-content {
+    transform: translateY(-20px);
+}
+
+/* Improve error modal mobile styles */
+@media (max-width: 768px) {
+    .error-modal-content {
+        margin: 15% auto;
+        width: 90%;
+        max-width: 350px;
+    }
+
+    .error-modal-header h3 {
+        font-size: 16px;
+    }
+
+    .error-modal-body {
+        font-size: 14px;
+    }
+
+    .error-modal-footer button {
+        width: 100%;
+        padding: 12px;
+        font-size: 16px;
+    }
 } 

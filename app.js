@@ -7,10 +7,16 @@ const SAMPLE_PDF = 'https://raw.githubusercontent.com/mozilla/pdf.js/ba2edeae/we
 // const SAMPLE_PDF = 'https://arxiv.org/pdf/2212.08011.pdf';
 // const SAMPLE_PDF = 'https://www.adobe.com/content/dam/acom/en/devnet/pdf/pdfs/PDF32000_2008.pdf';
 
-const APP_VERSION = '1.6.0';
+const APP_VERSION = '1.7.0';
 
 // Add changelog for tracking updates
 const CHANGELOG = {
+    '1.7.0': [
+        'Improved error modal functionality',
+        'Added error modal animations',
+        'Enhanced mobile error display',
+        'Better error handling and feedback'
+    ],
     '1.6.0': [
         'Improved QR code detection reliability',
         'Added multiple image processing strategies',
@@ -54,6 +60,10 @@ const CHANGELOG = {
     ]
 };
 
+// Initialize error handler at the start of the file, after the changelog
+const errorHandler = new ErrorHandler();
+
+// Update the ErrorHandler class with improved functionality
 class ErrorHandler {
     constructor() {
         this.modal = document.getElementById('errorModal');
@@ -78,17 +88,33 @@ class ErrorHandler {
                 this.hideError();
             }
         });
+
+        // Handle Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this.modal.style.display === 'block') {
+                this.hideError();
+            }
+        });
     }
 
-    showError(message) {
+    showError(message, duration = 0) {
         this.messageEl.textContent = message;
         this.modal.style.display = 'block';
         document.body.style.overflow = 'hidden';
+
+        // Auto-hide after duration (if specified)
+        if (duration > 0) {
+            setTimeout(() => this.hideError(), duration);
+        }
     }
 
     hideError() {
-        this.modal.style.display = 'none';
-        document.body.style.overflow = 'auto';
+        this.modal.classList.add('fade-out');
+        setTimeout(() => {
+            this.modal.style.display = 'none';
+            this.modal.classList.remove('fade-out');
+            document.body.style.overflow = 'auto';
+        }, 300);
     }
 }
 
