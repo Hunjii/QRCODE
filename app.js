@@ -7,6 +7,8 @@ const SAMPLE_PDF = 'https://raw.githubusercontent.com/mozilla/pdf.js/ba2edeae/we
 // const SAMPLE_PDF = 'https://arxiv.org/pdf/2212.08011.pdf';
 // const SAMPLE_PDF = 'https://www.adobe.com/content/dam/acom/en/devnet/pdf/pdfs/PDF32000_2008.pdf';
 
+const APP_VERSION = '1.0.0';
+
 class QRScanner {
     constructor() {
         this.video = document.getElementById('video');
@@ -257,4 +259,7 @@ document.getElementById('startCamera').addEventListener('click', () => {
 // Add sample PDF viewer button
 document.getElementById('viewSample').addEventListener('click', () => {
     pdfViewer.loadPDF(SAMPLE_PDF);
-}); 
+});
+
+// Update version display
+document.querySelector('.version-info span').textContent = `Version ${APP_VERSION}`; 

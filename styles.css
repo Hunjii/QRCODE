@@ -170,4 +170,29 @@ button:hover {
 #pdfViewer {
     height: calc(80vh - 100px);
     margin: 0;
+}
+
+.version-info {
+    position: fixed;
+    bottom: 10px;
+    right: 10px;
+    background-color: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    z-index: 1001; /* Above modal */
+}
+
+.version-info span {
+    opacity: 0.8;
+}
+
+/* Make version info responsive */
+@media (max-width: 768px) {
+    .version-info {
+        bottom: 5px;
+        right: 5px;
+        font-size: 10px;
+    }
 } 
