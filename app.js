@@ -7,10 +7,74 @@ const SAMPLE_PDF = 'https://raw.githubusercontent.com/mozilla/pdf.js/ba2edeae/we
 // const SAMPLE_PDF = 'https://arxiv.org/pdf/2212.08011.pdf';
 // const SAMPLE_PDF = 'https://www.adobe.com/content/dam/acom/en/devnet/pdf/pdfs/PDF32000_2008.pdf';
 
-const APP_VERSION = '1.9.0';
+const APP_VERSION = '1.9.1';
+
+// Define ErrorHandler class first
+class ErrorHandler {
+    constructor() {
+        this.modal = document.getElementById('errorModal');
+        this.messageEl = document.getElementById('errorMessage');
+        this.setupListeners();
+    }
+
+    setupListeners() {
+        // Close button
+        document.querySelector('.error-close').addEventListener('click', () => {
+            this.hideError();
+        });
+
+        // OK button
+        document.getElementById('errorOkButton').addEventListener('click', () => {
+            this.hideError();
+        });
+
+        // Click outside to close
+        this.modal.addEventListener('click', (e) => {
+            if (e.target === this.modal) {
+                this.hideError();
+            }
+        });
+
+        // Handle Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this.modal.style.display === 'block') {
+                this.hideError();
+            }
+        });
+    }
+
+    showError(message, duration = 0) {
+        this.messageEl.textContent = message;
+        this.modal.style.display = 'block';
+        document.body.style.overflow = 'hidden';
+
+        // Auto-hide after duration (if specified)
+        if (duration > 0) {
+            setTimeout(() => this.hideError(), duration);
+        }
+    }
+
+    hideError() {
+        this.modal.classList.add('fade-out');
+        setTimeout(() => {
+            this.modal.style.display = 'none';
+            this.modal.classList.remove('fade-out');
+            document.body.style.overflow = 'auto';
+        }, 300);
+    }
+}
+
+// Initialize error handler after class definition
+const errorHandler = new ErrorHandler();
 
 // Add changelog for tracking updates
 const CHANGELOG = {
+    '1.9.1': [
+        'Fixed error handler initialization',
+        'Improved code organization',
+        'Better error handling stability',
+        'Enhanced initialization sequence'
+    ],
     '1.9.0': [
         'Added real-time QR scanning',
         'Improved camera handling',
@@ -71,64 +135,6 @@ const CHANGELOG = {
         'PDF viewing capability'
     ]
 };
-
-// Initialize error handler at the start of the file, after the changelog
-const errorHandler = new ErrorHandler();
-
-// Update the ErrorHandler class with improved functionality
-class ErrorHandler {
-    constructor() {
-        this.modal = document.getElementById('errorModal');
-        this.messageEl = document.getElementById('errorMessage');
-        this.setupListeners();
-    }
-
-    setupListeners() {
-        // Close button
-        document.querySelector('.error-close').addEventListener('click', () => {
-            this.hideError();
-        });
-
-        // OK button
-        document.getElementById('errorOkButton').addEventListener('click', () => {
-            this.hideError();
-        });
-
-        // Click outside to close
-        this.modal.addEventListener('click', (e) => {
-            if (e.target === this.modal) {
-                this.hideError();
-            }
-        });
-
-        // Handle Escape key
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && this.modal.style.display === 'block') {
-                this.hideError();
-            }
-        });
-    }
-
-    showError(message, duration = 0) {
-        this.messageEl.textContent = message;
-        this.modal.style.display = 'block';
-        document.body.style.overflow = 'hidden';
-
-        // Auto-hide after duration (if specified)
-        if (duration > 0) {
-            setTimeout(() => this.hideError(), duration);
-        }
-    }
-
-    hideError() {
-        this.modal.classList.add('fade-out');
-        setTimeout(() => {
-            this.modal.style.display = 'none';
-            this.modal.classList.remove('fade-out');
-            document.body.style.overflow = 'auto';
-        }, 300);
-    }
-}
 
 class QRScanner {
     constructor() {
