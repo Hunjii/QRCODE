@@ -7,10 +7,16 @@ const SAMPLE_PDF = 'https://raw.githubusercontent.com/mozilla/pdf.js/ba2edeae/we
 // const SAMPLE_PDF = 'https://arxiv.org/pdf/2212.08011.pdf';
 // const SAMPLE_PDF = 'https://www.adobe.com/content/dam/acom/en/devnet/pdf/pdfs/PDF32000_2008.pdf';
 
-const APP_VERSION = '1.4.0';
+const APP_VERSION = '1.5.0';
 
 // Add changelog for tracking updates
 const CHANGELOG = {
+    '1.5.0': [
+        'Added error modal for better error handling',
+        'Improved error messages and feedback',
+        'Added animated error notifications',
+        'Enhanced mobile error display'
+    ],
     '1.4.0': [
         'Improved QR code detection from camera photos',
         'Added multiple detection strategies',
@@ -41,6 +47,44 @@ const CHANGELOG = {
         'PDF viewing capability'
     ]
 };
+
+class ErrorHandler {
+    constructor() {
+        this.modal = document.getElementById('errorModal');
+        this.messageEl = document.getElementById('errorMessage');
+        this.setupListeners();
+    }
+
+    setupListeners() {
+        // Close button
+        document.querySelector('.error-close').addEventListener('click', () => {
+            this.hideError();
+        });
+
+        // OK button
+        document.getElementById('errorOkButton').addEventListener('click', () => {
+            this.hideError();
+        });
+
+        // Click outside to close
+        this.modal.addEventListener('click', (e) => {
+            if (e.target === this.modal) {
+                this.hideError();
+            }
+        });
+    }
+
+    showError(message) {
+        this.messageEl.textContent = message;
+        this.modal.style.display = 'block';
+        document.body.style.overflow = 'hidden';
+    }
+
+    hideError() {
+        this.modal.style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+}
 
 class QRScanner {
     constructor() {
@@ -151,7 +195,7 @@ class QRScanner {
             }
         } catch (err) {
             console.error('Error processing image:', err);
-            this.output.textContent = 'Error processing image. Please try again.';
+            errorHandler.showError('Error processing image. Please try again with a clearer photo.');
             document.querySelector('.camera-container').classList.remove('processing');
         }
     }
@@ -265,7 +309,7 @@ class QRScanner {
                 errorMessage += err.message;
         }
         
-        this.output.textContent = errorMessage;
+        errorHandler.showError(errorMessage);
     }
 
     setupStream(stream) {
