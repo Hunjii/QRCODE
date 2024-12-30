@@ -7,10 +7,16 @@ const SAMPLE_PDF = 'https://raw.githubusercontent.com/mozilla/pdf.js/ba2edeae/we
 // const SAMPLE_PDF = 'https://arxiv.org/pdf/2212.08011.pdf';
 // const SAMPLE_PDF = 'https://www.adobe.com/content/dam/acom/en/devnet/pdf/pdfs/PDF32000_2008.pdf';
 
-const APP_VERSION = '1.7.0';
+const APP_VERSION = '1.8.0';
 
 // Add changelog for tracking updates
 const CHANGELOG = {
+    '1.8.0': [
+        'Fixed QR code scanning from photos',
+        'Added multi-orientation detection',
+        'Improved image processing',
+        'Better mobile camera handling'
+    ],
     '1.7.0': [
         'Improved error modal functionality',
         'Added error modal animations',
@@ -206,9 +212,15 @@ class QRScanner {
             this.output.textContent = 'Processing image...';
 
             const image = await this.loadImage(file);
+            let code = null;
+
+            // Try different image orientations
+            const orientations = [0, 90, 180, 270];
             
-            // Try multiple detection strategies
-            const code = await this.detectQRCodeWithStrategies(image);
+            for (const rotation of orientations) {
+                code = await this.detectQRCodeWithStrategies(image, rotation);
+                if (code) break;
+            }
 
             if (code) {
                 this.output.textContent = `QR Code detected: ${code.data}`;
@@ -221,40 +233,31 @@ class QRScanner {
                 container.classList.remove('processing');
                 this.showSuccessAnimation();
             } else {
-                errorHandler.showError('No QR code found. Please try again with a clearer photo.');
+                errorHandler.showError('No QR code found. Please try taking another photo.');
                 container.classList.remove('processing');
             }
         } catch (err) {
             console.error('Error processing image:', err);
-            errorHandler.showError('Error processing image. Please try again with a clearer photo.');
+            errorHandler.showError('Error processing image. Please try again.');
             document.querySelector('.camera-container').classList.remove('processing');
         }
     }
 
-    async detectQRCodeWithStrategies(image) {
-        // Define multiple processing strategies
+    async detectQRCodeWithStrategies(image, rotation = 0) {
         const strategies = [
-            // Original size
             { scale: 1.0, brightness: 0, contrast: 100 },
-            // Larger size
             { scale: 1.5, brightness: 0, contrast: 100 },
-            // Smaller size
             { scale: 0.8, brightness: 0, contrast: 100 },
-            // Brightness adjustments
-            { scale: 1.0, brightness: 30, contrast: 100 },
-            { scale: 1.0, brightness: -30, contrast: 100 },
-            // Contrast adjustments
-            { scale: 1.0, brightness: 0, contrast: 150 },
-            { scale: 1.0, brightness: 0, contrast: 75 },
-            // Combined adjustments
-            { scale: 1.2, brightness: 20, contrast: 120 },
-            { scale: 0.9, brightness: -10, contrast: 110 }
+            { scale: 1.0, brightness: 30, contrast: 120 },
+            { scale: 1.0, brightness: -30, contrast: 120 },
+            { scale: 1.2, brightness: 15, contrast: 110 },
+            { scale: 0.9, brightness: -15, contrast: 110 }
         ];
 
-        for (const strategy of strategies) {
-            const tempCanvas = document.createElement('canvas');
-            const tempCtx = tempCanvas.getContext('2d');
+        const tempCanvas = document.createElement('canvas');
+        const tempCtx = tempCanvas.getContext('2d');
 
+        for (const strategy of strategies) {
             // Calculate dimensions
             const width = Math.floor(image.width * strategy.scale);
             const height = Math.floor(image.height * strategy.scale);
@@ -262,15 +265,25 @@ class QRScanner {
             // Set canvas size
             tempCanvas.width = width;
             tempCanvas.height = height;
+            tempCtx.clearRect(0, 0, width, height);
+
+            // Apply rotation if needed
+            if (rotation !== 0) {
+                tempCtx.save();
+                tempCtx.translate(width/2, height/2);
+                tempCtx.rotate((rotation * Math.PI) / 180);
+                tempCtx.translate(-width/2, -height/2);
+            }
 
             // Apply image processing
             tempCtx.filter = `brightness(${100 + strategy.brightness}%) contrast(${strategy.contrast}%)`;
-            
-            // Draw image with current strategy
             tempCtx.drawImage(image, 0, 0, width, height);
 
+            if (rotation !== 0) {
+                tempCtx.restore();
+            }
+
             try {
-                // Get image data and attempt QR detection
                 const imageData = tempCtx.getImageData(0, 0, width, height);
                 const code = jsQR(imageData.data, imageData.width, imageData.height, {
                     inversionAttempts: "attemptBoth"
@@ -280,7 +293,7 @@ class QRScanner {
                     return code;
                 }
             } catch (err) {
-                console.log(`Strategy failed: Scale=${strategy.scale}, Brightness=${strategy.brightness}, Contrast=${strategy.contrast}`);
+                console.log(`Strategy failed: Scale=${strategy.scale}, Rotation=${rotation}`);
                 continue;
             }
         }
@@ -302,19 +315,36 @@ class QRScanner {
             reader.onload = (e) => {
                 const image = new Image();
                 image.onload = () => {
-                    // Normalize image orientation
+                    // Create a temporary canvas for image processing
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
                     
-                    // Set proper dimensions
-                    canvas.width = image.width;
-                    canvas.height = image.height;
+                    // Set dimensions
+                    const maxSize = 1920; // Maximum dimension
+                    let width = image.width;
+                    let height = image.height;
                     
-                    // Draw and export normalized image
-                    ctx.drawImage(image, 0, 0);
-                    const normalizedImage = new Image();
-                    normalizedImage.onload = () => resolve(normalizedImage);
-                    normalizedImage.src = canvas.toDataURL('image/jpeg', 1.0);
+                    // Scale down if image is too large
+                    if (width > maxSize || height > maxSize) {
+                        if (width > height) {
+                            height = (height / width) * maxSize;
+                            width = maxSize;
+                        } else {
+                            width = (width / height) * maxSize;
+                            height = maxSize;
+                        }
+                    }
+                    
+                    canvas.width = width;
+                    canvas.height = height;
+                    
+                    // Draw and optimize image
+                    ctx.drawImage(image, 0, 0, width, height);
+                    
+                    // Create optimized image
+                    const optimizedImage = new Image();
+                    optimizedImage.onload = () => resolve(optimizedImage);
+                    optimizedImage.src = canvas.toDataURL('image/jpeg', 0.8);
                 };
                 image.onerror = reject;
                 image.src = e.target.result;
@@ -325,10 +355,13 @@ class QRScanner {
     }
 
     openNativeCamera() {
-        // Force environment camera (back camera) for better QR scanning
+        // Set capture attribute to force using the camera
         this.imageInput.setAttribute('capture', 'environment');
         this.imageInput.setAttribute('accept', 'image/*');
         this.output.textContent = 'Opening camera...';
+        
+        // Clear any existing value to ensure change event fires
+        this.imageInput.value = '';
         this.imageInput.click();
     }
 
