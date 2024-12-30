@@ -7,7 +7,22 @@ const SAMPLE_PDF = 'https://raw.githubusercontent.com/mozilla/pdf.js/ba2edeae/we
 // const SAMPLE_PDF = 'https://arxiv.org/pdf/2212.08011.pdf';
 // const SAMPLE_PDF = 'https://www.adobe.com/content/dam/acom/en/devnet/pdf/pdfs/PDF32000_2008.pdf';
 
-const APP_VERSION = '1.0.0';
+const APP_VERSION = '1.1.0';
+
+// Add changelog for tracking updates
+const CHANGELOG = {
+    '1.1.0': [
+        'Improved mobile camera handling',
+        'Added auto-focus and exposure optimization',
+        'Better orientation support',
+        'Enhanced error messages'
+    ],
+    '1.0.0': [
+        'Initial release',
+        'Basic QR code scanning',
+        'PDF viewing capability'
+    ]
+};
 
 class QRScanner {
     constructor() {
@@ -16,24 +31,49 @@ class QRScanner {
         this.ctx = this.canvas.getContext('2d');
         this.output = document.getElementById('output');
         this.scanning = false;
-        this.currentStream = null; // Track current camera stream
+        this.currentStream = null;
     }
 
     async startCamera() {
         try {
-            // First try to get the back camera (preferred for QR scanning)
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({
+            // Check if running on mobile
+            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+            if (isMobile) {
+                // For mobile devices, try to use the native camera app if possible
+                const constraints = {
                     video: {
-                        facingMode: { exact: "environment" }, // Force back camera
+                        facingMode: { ideal: 'environment' }, // Prefer back camera
                         width: { ideal: 1280 },
-                        height: { ideal: 720 }
+                        height: { ideal: 720 },
+                        // Add advanced mobile constraints
+                        aspectRatio: { ideal: 1.7777777778 },
+                        frameRate: { ideal: 30 },
+                        // Enable auto-focus and auto-exposure
+                        focusMode: { ideal: 'continuous' },
+                        exposureMode: { ideal: 'continuous' },
+                        // Optimize for QR scanning
+                        whiteBalanceMode: { ideal: 'continuous' }
                     }
-                });
-                this.setupStream(stream);
-            } catch (err) {
-                // If back camera fails, try any available camera
-                console.log('Back camera not available, trying front camera...');
+                };
+
+                try {
+                    // First try to get the back camera
+                    const stream = await navigator.mediaDevices.getUserMedia({
+                        video: {
+                            ...constraints.video,
+                            facingMode: { exact: 'environment' } // Force back camera
+                        }
+                    });
+                    this.setupStream(stream);
+                } catch (err) {
+                    console.log('Back camera failed, trying any available camera:', err);
+                    // If back camera fails, try any camera
+                    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                    this.setupStream(stream);
+                }
+            } else {
+                // For desktop, use simpler constraints
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: {
                         width: { ideal: 1280 },
@@ -44,25 +84,54 @@ class QRScanner {
             }
         } catch (err) {
             console.error('Error accessing camera:', err);
-            this.output.textContent = 'Error accessing camera. Please ensure camera permissions are granted and you are using HTTPS.';
+            
+            // More detailed error messages
+            if (err.name === 'NotAllowedError') {
+                this.output.textContent = 'Camera access denied. Please grant camera permissions.';
+            } else if (err.name === 'NotFoundError') {
+                this.output.textContent = 'No camera found on your device.';
+            } else if (err.name === 'NotReadableError') {
+                this.output.textContent = 'Camera is already in use by another application.';
+            } else if (err.name === 'SecurityError') {
+                this.output.textContent = 'Camera access blocked. Please use HTTPS.';
+            } else {
+                this.output.textContent = `Error accessing camera: ${err.message}`;
+            }
         }
     }
 
     setupStream(stream) {
-        // Store current stream
         this.currentStream = stream;
         this.video.srcObject = stream;
         
-        // Play video when metadata is loaded
+        // Handle video orientation changes
+        if ('orientation' in window) {
+            window.addEventListener('orientationchange', () => {
+                // Brief timeout to let orientation change complete
+                setTimeout(() => {
+                    this.adjustVideoOrientation();
+                }, 200);
+            });
+        }
+
         this.video.onloadedmetadata = () => {
             this.video.play();
             this.scanning = true;
+            this.adjustVideoOrientation();
             this.scan();
             
-            // Update UI to show scanning is active
             this.output.textContent = 'Scanning for QR code...';
             document.getElementById('startCamera').textContent = 'Stop Camera';
         };
+    }
+
+    adjustVideoOrientation() {
+        const isPortrait = window.matchMedia("(orientation: portrait)").matches;
+        if (isPortrait) {
+            this.video.style.transform = 'scaleX(-1) rotate(0deg)';
+        } else {
+            this.video.style.transform = 'scaleX(-1) rotate(0deg)';
+        }
     }
 
     stopCamera() {
