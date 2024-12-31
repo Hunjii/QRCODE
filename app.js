@@ -7,7 +7,7 @@ const SAMPLE_PDF = 'https://raw.githubusercontent.com/mozilla/pdf.js/ba2edeae/we
 // const SAMPLE_PDF = 'https://arxiv.org/pdf/2212.08011.pdf';
 // const SAMPLE_PDF = 'https://www.adobe.com/content/dam/acom/en/devnet/pdf/pdfs/PDF32000_2008.pdf';
 
-const APP_VERSION = '2.0.2';
+const APP_VERSION = '2.0.3';
 
 // Define ErrorHandler class first
 class ErrorHandler {
@@ -69,6 +69,12 @@ const errorHandler = new ErrorHandler();
 
 // Add changelog for tracking updates
 const CHANGELOG = {
+    '2.0.3': [
+        'Fixed camera access and permissions',
+        'Added camera device listing',
+        'Improved error detection',
+        'Better initialization'
+    ],
     '2.0.2': [
         'Fixed QR Scanner worker path',
         'Improved camera initialization',
@@ -173,6 +179,19 @@ class QRScanner {
         // Initialize QR Scanner with options
         QrScanner.WORKER_PATH = 'https://cdn.jsdelivr.net/npm/qr-scanner@1.4.2/qr-scanner-worker.min.js';
         
+        // Create QR Scanner instance immediately
+        this.qrScanner = new QrScanner(
+            this.video,
+            result => this.handleScanResult(result),
+            {
+                preferredCamera: 'environment',
+                highlightScanRegion: true,
+                highlightCodeOutline: true,
+                maxScansPerSecond: 5,
+                returnDetailedScanResult: true
+            }
+        );
+        
         this.setupEventListeners();
     }
 
@@ -223,27 +242,11 @@ class QRScanner {
 
     async startCamera() {
         try {
-            // Create QR Scanner instance if not exists
-            if (!this.qrScanner) {
-                this.qrScanner = new QrScanner(
-                    this.video,
-                    result => this.handleScanResult(result),
-                    {
-                        preferredCamera: 'environment', // Prefer back camera
-                        highlightScanRegion: true,
-                        highlightCodeOutline: true,
-                        maxScansPerSecond: 5,
-                        returnDetailedScanResult: true
-                    }
-                );
-            }
+            // List available cameras
+            const cameras = await QrScanner.listCameras(true);
+            console.log('Available cameras:', cameras);
 
-            // Check for camera permissions
-            const hasCamera = await QrScanner.hasCamera();
-            if (!hasCamera) {
-                throw new Error('No camera found on this device');
-            }
-
+            // Try to start the camera
             await this.qrScanner.start();
             this.scanning = true;
             
@@ -258,14 +261,14 @@ class QRScanner {
             console.error('Camera error:', err);
             let errorMessage = 'Could not access camera. ';
             
-            if (err.name === 'NotAllowedError') {
-                errorMessage += 'Please grant camera permissions.';
-            } else if (err.name === 'NotFoundError') {
+            if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                errorMessage += 'Please grant camera permissions in your browser settings.';
+            } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
                 errorMessage += 'No camera found on your device.';
-            } else if (err.name === 'NotReadableError') {
-                errorMessage += 'Camera is already in use.';
+            } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+                errorMessage += 'Camera is already in use or not accessible.';
             } else {
-                errorMessage += 'Please check permissions and try again.';
+                errorMessage += err.message || 'Please check permissions and try again.';
             }
             
             errorHandler.showError(errorMessage);
