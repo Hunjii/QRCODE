@@ -7,7 +7,7 @@ const SAMPLE_PDF = 'https://raw.githubusercontent.com/mozilla/pdf.js/ba2edeae/we
 // const SAMPLE_PDF = 'https://arxiv.org/pdf/2212.08011.pdf';
 // const SAMPLE_PDF = 'https://www.adobe.com/content/dam/acom/en/devnet/pdf/pdfs/PDF32000_2008.pdf';
 
-const APP_VERSION = '2.0.1';
+const APP_VERSION = '2.0.2';
 
 // Define ErrorHandler class first
 class ErrorHandler {
@@ -69,6 +69,12 @@ const errorHandler = new ErrorHandler();
 
 // Add changelog for tracking updates
 const CHANGELOG = {
+    '2.0.2': [
+        'Fixed QR Scanner worker path',
+        'Improved camera initialization',
+        'Better error handling',
+        'Enhanced mobile compatibility'
+    ],
     '2.0.1': [
         'Fixed camera access issues',
         'Added better camera error handling',
