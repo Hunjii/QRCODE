@@ -7,7 +7,7 @@ const SAMPLE_PDF = 'https://raw.githubusercontent.com/mozilla/pdf.js/ba2edeae/we
 // const SAMPLE_PDF = 'https://arxiv.org/pdf/2212.08011.pdf';
 // const SAMPLE_PDF = 'https://www.adobe.com/content/dam/acom/en/devnet/pdf/pdfs/PDF32000_2008.pdf';
 
-const APP_VERSION = '1.9.2';
+const APP_VERSION = '2.0.0';
 
 // Define ErrorHandler class first
 class ErrorHandler {
@@ -69,6 +69,12 @@ const errorHandler = new ErrorHandler();
 
 // Add changelog for tracking updates
 const CHANGELOG = {
+    '2.0.0': [
+        'Switched to QR Scanner library',
+        'Improved scanning reliability',
+        'Better camera handling',
+        'Enhanced QR detection'
+    ],
     '1.9.2': [
         'Fixed native camera access',
         'Improved camera error handling',
@@ -150,7 +156,7 @@ class QRScanner {
         this.output = document.getElementById('output');
         this.imageInput = document.getElementById('imageInput');
         this.scanning = false;
-        this.currentStream = null;
+        this.qrScanner = null;
         
         this.setupEventListeners();
     }
@@ -158,47 +164,29 @@ class QRScanner {
     setupEventListeners() {
         // Select image button
         document.getElementById('selectImage').addEventListener('click', () => {
-            this.imageInput.removeAttribute('capture');
             this.imageInput.click();
         });
 
-        // Take photo button - use native camera
+        // Take photo button
         document.getElementById('takePhoto').addEventListener('click', () => {
-            if (this.currentStream) {
+            if (this.scanning) {
                 this.stopCamera();
             } else {
-                // For mobile devices, use native camera
-                if (this.isMobile()) {
-                    this.openNativeCamera();
-                } else {
-                    this.startCamera(); // For desktop, use web camera
-                }
+                this.startCamera();
             }
         });
 
-        // Handle file selection or photo capture
+        // Handle file selection
         this.imageInput.addEventListener('change', async (e) => {
             const file = e.target.files[0];
             if (file) {
-                // Show loading state
-                this.output.textContent = 'Processing image...';
-                
-                try {
-                    await this.processImage(file);
-                    // Add visual feedback for successful processing
-                    this.output.textContent = 'Image processed. Scanning for QR code...';
-                } catch (err) {
-                    this.output.textContent = 'Error processing image. Please try again.';
-                    console.error('Error:', err);
-                }
+                this.processFile(file);
             }
-            // Reset input to allow selecting the same file again
             this.imageInput.value = '';
         });
 
         // Setup drag and drop
         const container = document.querySelector('.camera-container');
-        
         container.addEventListener('dragover', (e) => {
             e.preventDefault();
             container.classList.add('dragging');
@@ -213,110 +201,91 @@ class QRScanner {
             container.classList.remove('dragging');
             const file = e.dataTransfer.files[0];
             if (file && file.type.startsWith('image/')) {
-                this.processImage(file);
+                this.processFile(file);
             }
         });
     }
 
-    isMobile() {
-        return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    async startCamera() {
+        try {
+            // Create QR Scanner instance if not exists
+            if (!this.qrScanner) {
+                this.qrScanner = new QrScanner(
+                    this.video,
+                    result => this.handleScanResult(result),
+                    {
+                        highlightScanRegion: true,
+                        highlightCodeOutline: true,
+                    }
+                );
+            }
+
+            await this.qrScanner.start();
+            this.scanning = true;
+            
+            // Update UI
+            this.video.style.display = 'block';
+            this.video.classList.add('active');
+            document.querySelector('.camera-container').classList.add('scanning');
+            document.getElementById('takePhoto').innerHTML = '<i class="fas fa-stop"></i> Stop Camera';
+            this.output.textContent = 'Scanning for QR code...';
+            
+        } catch (err) {
+            console.error('Camera error:', err);
+            errorHandler.showError('Could not access camera. Please check permissions and try again.');
+        }
     }
 
-    async processImage(file) {
+    stopCamera() {
+        if (this.qrScanner) {
+            this.qrScanner.stop();
+            this.scanning = false;
+            
+            // Reset UI
+            this.video.style.display = 'none';
+            this.video.classList.remove('active');
+            document.querySelector('.camera-container').classList.remove('scanning');
+            document.getElementById('takePhoto').innerHTML = '<i class="fas fa-camera"></i> Take Photo';
+            this.output.textContent = 'Camera stopped';
+        }
+    }
+
+    async processFile(file) {
         try {
-            // Show processing state
             const container = document.querySelector('.camera-container');
             container.classList.add('processing');
             this.output.textContent = 'Processing image...';
 
-            const image = await this.loadImage(file);
-            let code = null;
+            const result = await QrScanner.scanImage(file, {
+                returnDetailedScanResult: true
+            });
 
-            // Try different image orientations
-            const orientations = [0, 90, 180, 270];
-            
-            for (const rotation of orientations) {
-                code = await this.detectQRCodeWithStrategies(image, rotation);
-                if (code) break;
-            }
-
-            if (code) {
-                this.output.textContent = `QR Code detected: ${code.data}`;
-                if (code.data.toLowerCase().endsWith('.pdf')) {
-                    pdfViewer.loadPDF(code.data);
-                } else {
-                    pdfViewer.loadPDF(SAMPLE_PDF);
-                }
-                
-                container.classList.remove('processing');
-                this.showSuccessAnimation();
+            if (result) {
+                this.handleScanResult(result);
             } else {
-                errorHandler.showError('No QR code found. Please try taking another photo.');
-                container.classList.remove('processing');
+                errorHandler.showError('No QR code found. Please try another image.');
             }
         } catch (err) {
-            console.error('Error processing image:', err);
+            console.error('Processing error:', err);
             errorHandler.showError('Error processing image. Please try again.');
+        } finally {
             document.querySelector('.camera-container').classList.remove('processing');
         }
     }
 
-    async detectQRCodeWithStrategies(image, rotation = 0) {
-        const strategies = [
-            { scale: 1.0, brightness: 0, contrast: 100 },
-            { scale: 1.5, brightness: 0, contrast: 100 },
-            { scale: 0.8, brightness: 0, contrast: 100 },
-            { scale: 1.0, brightness: 30, contrast: 120 },
-            { scale: 1.0, brightness: -30, contrast: 120 },
-            { scale: 1.2, brightness: 15, contrast: 110 },
-            { scale: 0.9, brightness: -15, contrast: 110 }
-        ];
-
-        const tempCanvas = document.createElement('canvas');
-        const tempCtx = tempCanvas.getContext('2d');
-
-        for (const strategy of strategies) {
-            // Calculate dimensions
-            const width = Math.floor(image.width * strategy.scale);
-            const height = Math.floor(image.height * strategy.scale);
-            
-            // Set canvas size
-            tempCanvas.width = width;
-            tempCanvas.height = height;
-            tempCtx.clearRect(0, 0, width, height);
-
-            // Apply rotation if needed
-            if (rotation !== 0) {
-                tempCtx.save();
-                tempCtx.translate(width/2, height/2);
-                tempCtx.rotate((rotation * Math.PI) / 180);
-                tempCtx.translate(-width/2, -height/2);
-            }
-
-            // Apply image processing
-            tempCtx.filter = `brightness(${100 + strategy.brightness}%) contrast(${strategy.contrast}%)`;
-            tempCtx.drawImage(image, 0, 0, width, height);
-
-            if (rotation !== 0) {
-                tempCtx.restore();
-            }
-
-            try {
-                const imageData = tempCtx.getImageData(0, 0, width, height);
-                const code = jsQR(imageData.data, imageData.width, imageData.height, {
-                    inversionAttempts: "attemptBoth"
-                });
-
-                if (code) {
-                    return code;
-                }
-            } catch (err) {
-                console.log(`Strategy failed: Scale=${strategy.scale}, Rotation=${rotation}`);
-                continue;
-            }
+    handleScanResult(result) {
+        this.output.textContent = `QR Code detected: ${result.data}`;
+        
+        if (result.data.toLowerCase().endsWith('.pdf')) {
+            pdfViewer.loadPDF(result.data);
+        } else {
+            pdfViewer.loadPDF(SAMPLE_PDF);
         }
-
-        return null;
+        
+        this.showSuccessAnimation();
+        if (this.scanning) {
+            this.stopCamera();
+        }
     }
 
     showSuccessAnimation() {
@@ -325,182 +294,6 @@ class QRScanner {
         setTimeout(() => {
             container.classList.remove('success');
         }, 1500);
-    }
-
-    loadImage(file) {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const image = new Image();
-                image.onload = () => {
-                    // Create a temporary canvas for image processing
-                    const canvas = document.createElement('canvas');
-                    const ctx = canvas.getContext('2d');
-                    
-                    // Set dimensions
-                    const maxSize = 1920; // Maximum dimension
-                    let width = image.width;
-                    let height = image.height;
-                    
-                    // Scale down if image is too large
-                    if (width > maxSize || height > maxSize) {
-                        if (width > height) {
-                            height = (height / width) * maxSize;
-                            width = maxSize;
-                        } else {
-                            width = (width / height) * maxSize;
-                            height = maxSize;
-                        }
-                    }
-                    
-                    canvas.width = width;
-                    canvas.height = height;
-                    
-                    // Draw and optimize image
-                    ctx.drawImage(image, 0, 0, width, height);
-                    
-                    // Create optimized image
-                    const optimizedImage = new Image();
-                    optimizedImage.onload = () => resolve(optimizedImage);
-                    optimizedImage.src = canvas.toDataURL('image/jpeg', 0.8);
-                };
-                image.onerror = reject;
-                image.src = e.target.result;
-            };
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-        });
-    }
-
-    openNativeCamera() {
-        // Set capture attribute to force using the camera
-        this.imageInput.setAttribute('capture', 'environment');
-        this.imageInput.setAttribute('accept', 'image/*');
-        this.output.textContent = 'Opening camera...';
-        
-        // Clear any existing value to ensure change event fires
-        this.imageInput.value = '';
-        this.imageInput.click();
-    }
-
-    async startCamera() {
-        try {
-            if (this.isMobile()) {
-                // For mobile devices, try to use the native camera API
-                try {
-                    const stream = await navigator.mediaDevices.getUserMedia({
-                        video: {
-                            facingMode: { exact: "environment" }, // Force back camera
-                            width: { ideal: 1920 },
-                            height: { ideal: 1080 }
-                        }
-                    });
-                    this.setupNativeScanning(stream);
-                } catch (err) {
-                    console.log('Back camera failed, trying any camera:', err);
-                    // If back camera fails, try any camera
-                    const stream = await navigator.mediaDevices.getUserMedia({
-                        video: true
-                    });
-                    this.setupNativeScanning(stream);
-                }
-            } else {
-                // For desktop
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 }
-                    }
-                });
-                this.setupNativeScanning(stream);
-            }
-        } catch (err) {
-            console.error('Camera access error:', err);
-            errorHandler.showError('Could not access camera. Please check permissions and try again.');
-        }
-    }
-
-    setupNativeScanning(stream) {
-        this.currentStream = stream;
-        this.video.srcObject = stream;
-        this.video.setAttribute('playsinline', true);
-        
-        // Show video element and scanning UI
-        this.video.style.display = 'block';
-        this.video.classList.add('active');
-        document.querySelector('.camera-container').classList.add('scanning');
-
-        this.video.onloadedmetadata = () => {
-            this.video.play();
-            this.scanning = true;
-            this.scanNative();
-            
-            this.output.textContent = 'Scanning for QR code...';
-            document.getElementById('takePhoto').innerHTML = '<i class="fas fa-stop"></i> Stop Camera';
-        };
-    }
-
-    async scanNative() {
-        if (!this.scanning) return;
-
-        try {
-            if (this.video.readyState === this.video.HAVE_ENOUGH_DATA) {
-                // Set canvas dimensions to match video
-                this.canvas.width = this.video.videoWidth;
-                this.canvas.height = this.video.videoHeight;
-                
-                // Draw current video frame
-                this.ctx.drawImage(this.video, 0, 0);
-                
-                // Get image data and scan for QR code
-                const imageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
-                const code = jsQR(imageData.data, imageData.width, imageData.height, {
-                    inversionAttempts: "attemptBoth"
-                });
-
-                if (code) {
-                    // QR Code found
-                    this.output.textContent = `QR Code detected: ${code.data}`;
-                    
-                    // Handle PDF URL
-                    if (code.data.toLowerCase().endsWith('.pdf')) {
-                        pdfViewer.loadPDF(code.data);
-                    } else {
-                        pdfViewer.loadPDF(SAMPLE_PDF);
-                    }
-                    
-                    // Show success animation and stop camera
-                    this.showSuccessAnimation();
-                    this.stopCamera();
-                    return;
-                }
-            }
-        } catch (err) {
-            console.error('Scanning error:', err);
-            errorHandler.showError('Error scanning QR code. Please try again.');
-            this.stopCamera();
-            return;
-        }
-
-        // Continue scanning
-        requestAnimationFrame(() => this.scanNative());
-    }
-
-    stopCamera() {
-        if (this.currentStream) {
-            this.currentStream.getTracks().forEach(track => track.stop());
-            this.currentStream = null;
-            this.video.srcObject = null;
-            this.scanning = false;
-            
-            // Reset UI
-            this.video.style.display = 'none';
-            this.video.classList.remove('active');
-            document.querySelector('.camera-container').classList.remove('scanning');
-            document.getElementById('takePhoto').innerHTML = '<i class="fas fa-camera"></i> Take Photo';
-            
-            this.output.textContent = 'Camera stopped';
-        }
     }
 }
 
