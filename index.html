@@ -3,89 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QR Code Scanner & PDF Viewer</title>
+    <title>QR Scanner - PDF Reader</title>
     <link rel="stylesheet" href="styles.css">
-    <!-- PDF.js CDN -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" crossorigin="anonymous"></script>
-    <!-- jsQR library -->
-    <script src="https://cdn.jsdelivr.net/npm/qr-scanner@1.4.2/qr-scanner.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/qr-scanner@1.4.2/qr-scanner-worker.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <!-- Include HTML5-QRCode library -->
+    <script src="https://unpkg.com/html5-qrcode"></script>
 </head>
 <body>
     <div class="container">
+        <h1>QR Code Scanner - PDF Reader</h1>
         <div class="version-info">
-            <span class="version">Version 2.0.3</span>
-            <div class="changelog-tooltip">
-                <ul>
-                    <li>Fixed camera access</li>
-                    <li>Added device listing</li>
-                    <li>Improved error detection</li>
-                    <li>Better initialization</li>
-                </ul>
-            </div>
-        </div>
-        <div class="scanner-section">
-            <h2>QR Code Scanner</h2>
-            <div class="camera-container">
-                <input type="file" id="imageInput" accept="image/*" style="display: none;">
-                <video id="video" playsinline></video>
-                <canvas id="canvas" style="display: none;"></canvas>
-                <div class="camera-placeholder">
-                    <i class="fas fa-camera"></i>
-                    <p>Click buttons below to take photo or select image</p>
-                </div>
-            </div>
-            <div class="scanner-buttons">
-                <button id="selectImage">
-                    <i class="fas fa-images"></i> Select Image
-                </button>
-                <button id="takePhoto">
-                    <i class="fas fa-camera"></i> Take Photo
-                </button>
-            </div>
-            <div id="output"></div>
+            <span id="version">Version 1.0.0</span>
+            <span id="lastUpdated"></span>
         </div>
         
-        <div class="pdf-section">
-            <h2>PDF Viewer</h2>
-            <button id="viewSample">View Sample PDF</button>
-        </div>
+        <!-- QR Scanner container -->
+        <div id="reader"></div>
         
-        <!-- PDF Modal -->
-        <div id="pdfModal" class="modal">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h3>PDF Viewer</h3>
-                    <span class="close">&times;</span>
-                </div>
-                <div id="pdfViewer">
-                    <canvas id="pdfCanvas"></canvas>
-                </div>
-                <div class="pdf-controls">
-                    <button id="prevPage">Previous</button>
-                    <span id="pageInfo">Page: <span id="pageNum"></span> / <span id="pageCount"></span></span>
-                    <button id="nextPage">Next</button>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Add error modal -->
-        <div id="errorModal" class="error-modal">
-            <div class="error-modal-content">
-                <div class="error-modal-header">
-                    <h3><i class="fas fa-exclamation-circle"></i> Error</h3>
-                    <span class="error-close">&times;</span>
-                </div>
-                <div class="error-modal-body">
-                    <p id="errorMessage"></p>
-                </div>
-                <div class="error-modal-footer">
-                    <button id="errorOkButton">OK</button>
-                </div>
-            </div>
+        <!-- Result container -->
+        <div id="result"></div>
+    </div>
+
+    <!-- Modal for PDF -->
+    <div id="pdfModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <iframe id="pdfViewer" width="100%" height="500px"></iframe>
         </div>
     </div>
-    <script src="app.js"></script>
+
+    <script src="script.js"></script>
 </body>
 </html> 
