@@ -11,17 +11,49 @@ const pdfViewer = document.getElementById('pdf-viewer');
 // Initialize QR Scanner
 async function initializeScanner() {
     try {
+        // First check if we have cameras available
+        const hasCamera = await QrScanner.hasCamera();
+        if (!hasCamera) {
+            throw new Error('No camera found on this device');
+        }
+
+        // Get available cameras
+        const cameras = await QrScanner.listCameras(true);
+        
         qrScanner = new QrScanner(
             video,
             result => handleScanResult(result),
             {
                 highlightScanRegion: true,
                 highlightCodeOutline: true,
+                // Prefer environment camera if available (back camera)
+                preferredCamera: 'environment'
             }
         );
+
+        // Try to start the scanner to test permissions
+        await qrScanner.start();
+        // If successful, stop it until user clicks start
+        qrScanner.stop();
+        
     } catch (error) {
-        console.error('Failed to initialize scanner:', error);
-        alert('Could not initialize QR scanner. Please check camera permissions.');
+        console.error('Scanner initialization error:', error);
+        let errorMessage = 'Could not initialize QR scanner. ';
+        
+        if (error.name === 'NotAllowedError') {
+            errorMessage += 'Please grant camera permission.';
+        } else if (error.name === 'NotFoundError') {
+            errorMessage += 'No camera found on this device.';
+        } else if (error.name === 'NotReadableError') {
+            errorMessage += 'Camera is already in use.';
+        } else if (error.name === 'SecurityError') {
+            errorMessage += 'Camera access is blocked. Please use HTTPS or localhost.';
+        } else {
+            errorMessage += error.message || 'Unknown error occurred.';
+        }
+        
+        alert(errorMessage);
+        throw error;
     }
 }
 
@@ -41,15 +73,23 @@ function handleScanResult(result) {
 
 // Event Listeners
 startButton.addEventListener('click', async () => {
-    if (!qrScanner) {
-        await initializeScanner();
+    try {
+        if (!qrScanner) {
+            await initializeScanner();
+        }
+        await qrScanner.start();
+        startButton.disabled = true;
+        stopButton.disabled = false;
+    } catch (error) {
+        console.error('Failed to start scanner:', error);
     }
-    qrScanner.start();
 });
 
 stopButton.addEventListener('click', () => {
     if (qrScanner) {
         qrScanner.stop();
+        startButton.disabled = false;
+        stopButton.disabled = true;
     }
 });
 
@@ -69,4 +109,12 @@ window.addEventListener('click', (event) => {
 });
 
 // Initialize scanner when page loads
-document.addEventListener('DOMContentLoaded', initializeScanner); 
+document.addEventListener('DOMContentLoaded', async () => {
+    stopButton.disabled = true; // Initially disable stop button
+    try {
+        await initializeScanner();
+    } catch (error) {
+        startButton.disabled = true;
+        console.error('Failed to initialize scanner:', error);
+    }
+}); 

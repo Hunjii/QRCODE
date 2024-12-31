@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>QR Scanner for PDFs</title>
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
     <style>
         * {
             margin: 0;
@@ -145,12 +147,30 @@
                 padding: 10px 20px;
             }
         }
+
+        .status-container {
+            margin: 10px 0;
+            min-height: 20px;
+        }
+
+        #status-message {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>QR Code Scanner for PDFs</h1>
         <video id="video"></video>
+        <div class="status-container">
+            <div id="status-message"></div>
+        </div>
         <div class="button-container">
             <button id="startButton">Start Scanner</button>
             <button id="stopButton">Stop Scanner</button>
