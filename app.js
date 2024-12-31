@@ -7,7 +7,7 @@ const SAMPLE_PDF = 'https://raw.githubusercontent.com/mozilla/pdf.js/ba2edeae/we
 // const SAMPLE_PDF = 'https://arxiv.org/pdf/2212.08011.pdf';
 // const SAMPLE_PDF = 'https://www.adobe.com/content/dam/acom/en/devnet/pdf/pdfs/PDF32000_2008.pdf';
 
-const APP_VERSION = '2.0.0';
+const APP_VERSION = '2.0.1';
 
 // Define ErrorHandler class first
 class ErrorHandler {
@@ -69,6 +69,12 @@ const errorHandler = new ErrorHandler();
 
 // Add changelog for tracking updates
 const CHANGELOG = {
+    '2.0.1': [
+        'Fixed camera access issues',
+        'Added better camera error handling',
+        'Improved camera initialization',
+        'Enhanced permission handling'
+    ],
     '2.0.0': [
         'Switched to QR Scanner library',
         'Improved scanning reliability',
@@ -158,6 +164,9 @@ class QRScanner {
         this.scanning = false;
         this.qrScanner = null;
         
+        // Initialize QR Scanner with options
+        QrScanner.WORKER_PATH = 'https://cdn.jsdelivr.net/npm/qr-scanner@1.4.2/qr-scanner-worker.min.js';
+        
         this.setupEventListeners();
     }
 
@@ -214,10 +223,19 @@ class QRScanner {
                     this.video,
                     result => this.handleScanResult(result),
                     {
+                        preferredCamera: 'environment', // Prefer back camera
                         highlightScanRegion: true,
                         highlightCodeOutline: true,
+                        maxScansPerSecond: 5,
+                        returnDetailedScanResult: true
                     }
                 );
+            }
+
+            // Check for camera permissions
+            const hasCamera = await QrScanner.hasCamera();
+            if (!hasCamera) {
+                throw new Error('No camera found on this device');
             }
 
             await this.qrScanner.start();
@@ -232,7 +250,19 @@ class QRScanner {
             
         } catch (err) {
             console.error('Camera error:', err);
-            errorHandler.showError('Could not access camera. Please check permissions and try again.');
+            let errorMessage = 'Could not access camera. ';
+            
+            if (err.name === 'NotAllowedError') {
+                errorMessage += 'Please grant camera permissions.';
+            } else if (err.name === 'NotFoundError') {
+                errorMessage += 'No camera found on your device.';
+            } else if (err.name === 'NotReadableError') {
+                errorMessage += 'Camera is already in use.';
+            } else {
+                errorMessage += 'Please check permissions and try again.';
+            }
+            
+            errorHandler.showError(errorMessage);
         }
     }
 
