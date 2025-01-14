@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document Scanner</title>
+    <title>QR Code Scanner</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="container">
-        <h1>Document Scanner</h1>
+        <h1>QR Code Scanner</h1>
         
         <div class="scanner-container">
             <!-- Camera view when active -->
@@ -17,25 +17,19 @@
             <!-- Camera controls -->
             <div class="controls">
                 <button id="start-camera" class="primary-btn">Start Camera</button>
-                <button id="capture-image" class="primary-btn" disabled>Capture</button>
+                <button id="toggle-scan" class="primary-btn" disabled>Start Scanning</button>
             </div>
         </div>
 
         <!-- Captured images gallery -->
         <div class="gallery-container">
-            <h2>Captured Images</h2>
+            <h2>Scanned QR Codes</h2>
             <div id="image-gallery" class="image-gallery"></div>
-        </div>
-
-        <!-- PDF generation controls -->
-        <div class="pdf-controls">
-            <button id="generate-pdf" class="primary-btn" disabled>Generate PDF</button>
         </div>
     </div>
 
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

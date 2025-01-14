@@ -1,6 +1,5 @@
 class DocumentScanner {
     constructor() {
-        this.capturedImages = [];
         this.stream = null;
         this.scanning = false;
         this.scanningQR = false;
@@ -12,8 +11,7 @@ class DocumentScanner {
     initializeElements() {
         this.cameraView = document.getElementById('camera-view');
         this.startButton = document.getElementById('start-camera');
-        this.captureButton = document.getElementById('capture-image');
-        this.generatePdfButton = document.getElementById('generate-pdf');
+        this.toggleScanButton = document.getElementById('toggle-scan');
         this.imageGallery = document.getElementById('image-gallery');
         
         // Create canvas for QR scanning
@@ -23,14 +21,7 @@ class DocumentScanner {
 
     addEventListeners() {
         this.startButton.addEventListener('click', () => this.startCamera());
-        this.captureButton.addEventListener('click', () => {
-            if (this.scanningQR) {
-                this.toggleQRScanning();
-            } else {
-                this.captureImage();
-            }
-        });
-        this.generatePdfButton.addEventListener('click', () => this.generatePDF());
+        this.toggleScanButton.addEventListener('click', () => this.toggleQRScanning());
     }
 
     async checkCameraSupport() {
@@ -76,7 +67,7 @@ class DocumentScanner {
             await this.cameraView.play();
 
             this.startButton.disabled = true;
-            this.captureButton.disabled = false;
+            this.toggleScanButton.disabled = false;
 
             // Start QR scanning
             this.startQRScanning();
@@ -104,13 +95,15 @@ class DocumentScanner {
 
             alert(errorMessage);
             this.startButton.disabled = false;
-            this.captureButton.disabled = true;
+            this.toggleScanButton.disabled = true;
         }
     }
 
     startQRScanning() {
         this.scanningQR = true;
         this.scanning = true;
+        this.toggleScanButton.textContent = 'Stop Scanning';
+        this.scanner-container.classList.add('scanning-qr');
         this.scanQRCode();
     }
 
@@ -118,9 +111,13 @@ class DocumentScanner {
         this.scanningQR = !this.scanningQR;
         if (this.scanningQR) {
             this.scanning = true;
+            this.toggleScanButton.textContent = 'Stop Scanning';
+            this.scanner-container.classList.add('scanning-qr');
             this.scanQRCode();
         } else {
             this.scanning = false;
+            this.toggleScanButton.textContent = 'Start Scanning';
+            this.scanner-container.classList.remove('scanning-qr');
         }
     }
 
@@ -153,14 +150,21 @@ class DocumentScanner {
     }
 
     handleQRCode(data) {
-        // Create a text element to display the QR code data
         const qrResult = document.createElement('div');
         qrResult.className = 'qr-result';
-        qrResult.textContent = `QR Code: ${data}`;
         
-        // Add to gallery or handle the data as needed
+        const qrData = document.createElement('div');
+        qrData.className = 'qr-data';
+        qrData.textContent = data;
+        
+        const timestamp = document.createElement('span');
+        timestamp.className = 'timestamp';
+        timestamp.textContent = new Date().toLocaleTimeString();
+        
         const galleryItem = document.createElement('div');
         galleryItem.className = 'gallery-item';
+        qrResult.appendChild(qrData);
+        qrResult.appendChild(timestamp);
         galleryItem.appendChild(qrResult);
         
         const removeButton = document.createElement('button');
@@ -171,83 +175,12 @@ class DocumentScanner {
         });
 
         galleryItem.appendChild(removeButton);
-        this.imageGallery.appendChild(galleryItem);
+        this.imageGallery.insertBefore(galleryItem, this.imageGallery.firstChild);
 
-        // Alert the user
-        alert(`QR Code detected: ${data}`);
-    }
-
-    captureImage() {
-        try {
-            const canvas = document.createElement('canvas');
-            // Ensure we have valid video dimensions
-            const width = this.cameraView.videoWidth;
-            const height = this.cameraView.videoHeight;
-            
-            if (!width || !height) {
-                throw new Error('Video stream not ready');
-            }
-
-            canvas.width = width;
-            canvas.height = height;
-            
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(this.cameraView, 0, 0);
-            
-            const imageData = canvas.toDataURL('image/jpeg', 0.8);
-            this.addImageToGallery(imageData);
-        } catch (error) {
-            console.error('Error capturing image:', error);
-            alert('Failed to capture image. Please try again.');
+        // Play a success sound or vibrate to indicate successful scan
+        if ('vibrate' in navigator) {
+            navigator.vibrate(200);
         }
-    }
-
-    addImageToGallery(imageData) {
-        const galleryItem = document.createElement('div');
-        galleryItem.className = 'gallery-item';
-
-        const img = document.createElement('img');
-        img.src = imageData;
-        
-        const removeButton = document.createElement('button');
-        removeButton.className = 'remove-btn';
-        removeButton.innerHTML = '×';
-        removeButton.addEventListener('click', () => {
-            this.capturedImages = this.capturedImages.filter(img => img !== imageData);
-            galleryItem.remove();
-            this.updateGeneratePdfButton();
-        });
-
-        galleryItem.appendChild(img);
-        galleryItem.appendChild(removeButton);
-        this.imageGallery.appendChild(galleryItem);
-
-        this.capturedImages.push(imageData);
-        this.updateGeneratePdfButton();
-    }
-
-    updateGeneratePdfButton() {
-        this.generatePdfButton.disabled = this.capturedImages.length === 0;
-    }
-
-    async generatePDF() {
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-        
-        for (let i = 0; i < this.capturedImages.length; i++) {
-            if (i > 0) {
-                doc.addPage();
-            }
-            
-            const img = this.capturedImages[i];
-            const imgProps = doc.getImageProperties(img);
-            const pdfWidth = doc.internal.pageSize.getWidth();
-            const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-            
-            doc.addImage(img, 'JPEG', 0, 0, pdfWidth, pdfHeight);
-        }
-
-        doc.save('scanned_document.pdf');
     }
 }
 

@@ -72,12 +72,14 @@ h1 {
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     margin-bottom: 20px;
+    max-height: 400px;
+    overflow-y: auto;
 }
 
 .image-gallery {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
     margin-top: 20px;
 }
 
@@ -86,12 +88,7 @@ h1 {
     border: 1px solid #ddd;
     padding: 10px;
     border-radius: 4px;
-}
-
-.gallery-item img {
-    width: 100%;
-    height: auto;
-    display: block;
+    background-color: #f8f9fa;
 }
 
 .gallery-item .remove-btn {
@@ -141,10 +138,22 @@ h1 {
 
 .qr-result {
     padding: 15px;
-    background-color: #f8f9fa;
     border-radius: 4px;
     margin: 10px 0;
     word-break: break-all;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.qr-result .timestamp {
+    color: #666;
+    font-size: 0.9em;
+    margin-left: 10px;
+}
+
+.qr-result .qr-data {
+    flex-grow: 1;
 }
 
 .scanning-qr #camera-view {
