@@ -37,6 +37,8 @@ h1 {
     display: block;
     margin: 0 auto 20px;
     background-color: #000;
+    object-fit: cover;
+    transform: scaleX(-1);
 }
 
 .controls {
@@ -118,4 +120,21 @@ h1 {
     .image-gallery {
         grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
     }
+}
+
+.camera-loading #camera-view {
+    opacity: 0.5;
+}
+
+.camera-loading .controls {
+    position: relative;
+}
+
+.camera-loading .controls::after {
+    content: "Loading camera...";
+    position: absolute;
+    top: -30px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #666;
 }

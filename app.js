@@ -4,6 +4,7 @@ class DocumentScanner {
         this.stream = null;
         this.initializeElements();
         this.addEventListeners();
+        this.checkCameraSupport();
     }
 
     initializeElements() {
@@ -20,29 +21,113 @@ class DocumentScanner {
         this.generatePdfButton.addEventListener('click', () => this.generatePDF());
     }
 
+    async checkCameraSupport() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            alert('Your browser does not support camera access. Please try using a modern browser.');
+            this.startButton.disabled = true;
+            return false;
+        }
+        return true;
+    }
+
     async startCamera() {
         try {
-            this.stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: 'environment' },
+            // Stop any existing stream
+            if (this.stream) {
+                this.stream.getTracks().forEach(track => track.stop());
+            }
+
+            // Try to get available video devices
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const videoDevices = devices.filter(device => device.kind === 'videoinput');
+
+            // Configure constraints based on available devices
+            let constraints = {
+                video: {
+                    facingMode: 'environment',
+                    width: { ideal: 1920 },
+                    height: { ideal: 1080 }
+                },
                 audio: false
-            });
+            };
+
+            // If there are multiple cameras, try to use the back camera
+            if (videoDevices.length > 1) {
+                const backCamera = videoDevices.find(device => 
+                    device.label.toLowerCase().includes('back') ||
+                    device.label.toLowerCase().includes('rear')
+                );
+                
+                if (backCamera) {
+                    constraints.video.deviceId = { exact: backCamera.deviceId };
+                }
+            }
+
+            // Request camera access
+            this.stream = await navigator.mediaDevices.getUserMedia(constraints);
+            
+            // Set up video stream
             this.cameraView.srcObject = this.stream;
+            await this.cameraView.play();  // Ensure video is playing
+            
+            // Enable/disable buttons
             this.startButton.disabled = true;
             this.captureButton.disabled = false;
+
         } catch (error) {
-            console.error('Error accessing camera:', error);
-            alert('Error accessing camera. Please make sure you have granted camera permissions.');
+            console.error('Camera access error:', error);
+            
+            // Provide more specific error messages
+            let errorMessage = 'Error accessing camera. ';
+            
+            switch (error.name) {
+                case 'NotAllowedError':
+                    errorMessage += 'Please grant camera permissions in your browser settings.';
+                    break;
+                case 'NotFoundError':
+                    errorMessage += 'No camera device found.';
+                    break;
+                case 'NotReadableError':
+                    errorMessage += 'Camera is already in use by another application.';
+                    break;
+                case 'OverconstrainedError':
+                    errorMessage += 'Camera does not meet the required constraints.';
+                    break;
+                default:
+                    errorMessage += 'Please check your camera and try again.';
+            }
+
+            alert(errorMessage);
+            
+            // Reset buttons
+            this.startButton.disabled = false;
+            this.captureButton.disabled = true;
         }
     }
 
     captureImage() {
-        const canvas = document.createElement('canvas');
-        canvas.width = this.cameraView.videoWidth;
-        canvas.height = this.cameraView.videoHeight;
-        canvas.getContext('2d').drawImage(this.cameraView, 0, 0);
-        
-        const imageData = canvas.toDataURL('image/jpeg');
-        this.addImageToGallery(imageData);
+        try {
+            const canvas = document.createElement('canvas');
+            // Ensure we have valid video dimensions
+            const width = this.cameraView.videoWidth;
+            const height = this.cameraView.videoHeight;
+            
+            if (!width || !height) {
+                throw new Error('Video stream not ready');
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(this.cameraView, 0, 0);
+            
+            const imageData = canvas.toDataURL('image/jpeg', 0.8);
+            this.addImageToGallery(imageData);
+        } catch (error) {
+            console.error('Error capturing image:', error);
+            alert('Failed to capture image. Please try again.');
+        }
     }
 
     addImageToGallery(imageData) {
