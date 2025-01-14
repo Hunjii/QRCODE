@@ -138,3 +138,28 @@ h1 {
     transform: translateX(-50%);
     color: #666;
 }
+
+.qr-result {
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    margin: 10px 0;
+    word-break: break-all;
+}
+
+.scanning-qr #camera-view {
+    border: 2px solid #007bff;
+}
+
+.scanning-qr::after {
+    content: "Scanning for QR Code...";
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 14px;
+}

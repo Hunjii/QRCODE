@@ -2,6 +2,8 @@ class DocumentScanner {
     constructor() {
         this.capturedImages = [];
         this.stream = null;
+        this.scanning = false;
+        this.scanningQR = false;
         this.initializeElements();
         this.addEventListeners();
         this.checkCameraSupport();
@@ -13,11 +15,21 @@ class DocumentScanner {
         this.captureButton = document.getElementById('capture-image');
         this.generatePdfButton = document.getElementById('generate-pdf');
         this.imageGallery = document.getElementById('image-gallery');
+        
+        // Create canvas for QR scanning
+        this.canvas = document.createElement('canvas');
+        this.canvasContext = this.canvas.getContext('2d');
     }
 
     addEventListeners() {
         this.startButton.addEventListener('click', () => this.startCamera());
-        this.captureButton.addEventListener('click', () => this.captureImage());
+        this.captureButton.addEventListener('click', () => {
+            if (this.scanningQR) {
+                this.toggleQRScanning();
+            } else {
+                this.captureImage();
+            }
+        });
         this.generatePdfButton.addEventListener('click', () => this.generatePDF());
     }
 
@@ -32,16 +44,13 @@ class DocumentScanner {
 
     async startCamera() {
         try {
-            // Stop any existing stream
             if (this.stream) {
                 this.stream.getTracks().forEach(track => track.stop());
             }
 
-            // Try to get available video devices
             const devices = await navigator.mediaDevices.enumerateDevices();
             const videoDevices = devices.filter(device => device.kind === 'videoinput');
 
-            // Configure constraints based on available devices
             let constraints = {
                 video: {
                     facingMode: 'environment',
@@ -51,7 +60,6 @@ class DocumentScanner {
                 audio: false
             };
 
-            // If there are multiple cameras, try to use the back camera
             if (videoDevices.length > 1) {
                 const backCamera = videoDevices.find(device => 
                     device.label.toLowerCase().includes('back') ||
@@ -63,21 +71,18 @@ class DocumentScanner {
                 }
             }
 
-            // Request camera access
             this.stream = await navigator.mediaDevices.getUserMedia(constraints);
-            
-            // Set up video stream
             this.cameraView.srcObject = this.stream;
-            await this.cameraView.play();  // Ensure video is playing
-            
-            // Enable/disable buttons
+            await this.cameraView.play();
+
             this.startButton.disabled = true;
             this.captureButton.disabled = false;
 
+            // Start QR scanning
+            this.startQRScanning();
+
         } catch (error) {
             console.error('Camera access error:', error);
-            
-            // Provide more specific error messages
             let errorMessage = 'Error accessing camera. ';
             
             switch (error.name) {
@@ -98,11 +103,78 @@ class DocumentScanner {
             }
 
             alert(errorMessage);
-            
-            // Reset buttons
             this.startButton.disabled = false;
             this.captureButton.disabled = true;
         }
+    }
+
+    startQRScanning() {
+        this.scanningQR = true;
+        this.scanning = true;
+        this.scanQRCode();
+    }
+
+    toggleQRScanning() {
+        this.scanningQR = !this.scanningQR;
+        if (this.scanningQR) {
+            this.scanning = true;
+            this.scanQRCode();
+        } else {
+            this.scanning = false;
+        }
+    }
+
+    async scanQRCode() {
+        if (!this.scanning || !this.scanningQR) return;
+
+        if (this.cameraView.readyState === this.cameraView.HAVE_ENOUGH_DATA) {
+            this.canvas.width = this.cameraView.videoWidth;
+            this.canvas.height = this.cameraView.videoHeight;
+            this.canvasContext.drawImage(this.cameraView, 0, 0);
+            
+            const imageData = this.canvasContext.getImageData(
+                0, 0, this.canvas.width, this.canvas.height
+            );
+
+            const code = jsQR(imageData.data, imageData.width, imageData.height);
+
+            if (code) {
+                console.log('Found QR code:', code.data);
+                // Handle the QR code data here
+                this.handleQRCode(code.data);
+                // Optionally pause scanning after finding a code
+                this.scanning = false;
+                this.scanningQR = false;
+                return;
+            }
+        }
+
+        requestAnimationFrame(() => this.scanQRCode());
+    }
+
+    handleQRCode(data) {
+        // Create a text element to display the QR code data
+        const qrResult = document.createElement('div');
+        qrResult.className = 'qr-result';
+        qrResult.textContent = `QR Code: ${data}`;
+        
+        // Add to gallery or handle the data as needed
+        const galleryItem = document.createElement('div');
+        galleryItem.className = 'gallery-item';
+        galleryItem.appendChild(qrResult);
+        
+        const removeButton = document.createElement('button');
+        removeButton.className = 'remove-btn';
+        removeButton.innerHTML = '×';
+        removeButton.addEventListener('click', () => {
+            galleryItem.remove();
+        });
+
+        galleryItem.appendChild(removeButton);
+        this.imageGallery.appendChild(galleryItem);
+
+        // Alert the user
+        alert(`QR Code detected: ${data}`);
     }
 
     captureImage() {
