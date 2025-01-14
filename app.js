@@ -1,120 +1,100 @@
-let qrScanner = null;
+class DocumentScanner {
+    constructor() {
+        this.capturedImages = [];
+        this.stream = null;
+        this.initializeElements();
+        this.addEventListeners();
+    }
 
-// DOM Elements
-const video = document.getElementById('video');
-const startButton = document.getElementById('startButton');
-const stopButton = document.getElementById('stopButton');
-const modal = document.getElementById('pdfModal');
-const closeBtn = document.querySelector('.close');
-const pdfViewer = document.getElementById('pdf-viewer');
+    initializeElements() {
+        this.cameraView = document.getElementById('camera-view');
+        this.startButton = document.getElementById('start-camera');
+        this.captureButton = document.getElementById('capture-image');
+        this.generatePdfButton = document.getElementById('generate-pdf');
+        this.imageGallery = document.getElementById('image-gallery');
+    }
 
-// Initialize QR Scanner
-async function initializeScanner() {
-    try {
-        // First check if we have cameras available
-        const hasCamera = await QrScanner.hasCamera();
-        if (!hasCamera) {
-            throw new Error('No camera found on this device');
+    addEventListeners() {
+        this.startButton.addEventListener('click', () => this.startCamera());
+        this.captureButton.addEventListener('click', () => this.captureImage());
+        this.generatePdfButton.addEventListener('click', () => this.generatePDF());
+    }
+
+    async startCamera() {
+        try {
+            this.stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: 'environment' },
+                audio: false
+            });
+            this.cameraView.srcObject = this.stream;
+            this.startButton.disabled = true;
+            this.captureButton.disabled = false;
+        } catch (error) {
+            console.error('Error accessing camera:', error);
+            alert('Error accessing camera. Please make sure you have granted camera permissions.');
         }
+    }
 
-        // Get available cameras
-        const cameras = await QrScanner.listCameras(true);
+    captureImage() {
+        const canvas = document.createElement('canvas');
+        canvas.width = this.cameraView.videoWidth;
+        canvas.height = this.cameraView.videoHeight;
+        canvas.getContext('2d').drawImage(this.cameraView, 0, 0);
         
-        qrScanner = new QrScanner(
-            video,
-            result => handleScanResult(result),
-            {
-                highlightScanRegion: true,
-                highlightCodeOutline: true,
-                // Prefer environment camera if available (back camera)
-                preferredCamera: 'environment'
+        const imageData = canvas.toDataURL('image/jpeg');
+        this.addImageToGallery(imageData);
+    }
+
+    addImageToGallery(imageData) {
+        const galleryItem = document.createElement('div');
+        galleryItem.className = 'gallery-item';
+
+        const img = document.createElement('img');
+        img.src = imageData;
+        
+        const removeButton = document.createElement('button');
+        removeButton.className = 'remove-btn';
+        removeButton.innerHTML = '×';
+        removeButton.addEventListener('click', () => {
+            this.capturedImages = this.capturedImages.filter(img => img !== imageData);
+            galleryItem.remove();
+            this.updateGeneratePdfButton();
+        });
+
+        galleryItem.appendChild(img);
+        galleryItem.appendChild(removeButton);
+        this.imageGallery.appendChild(galleryItem);
+
+        this.capturedImages.push(imageData);
+        this.updateGeneratePdfButton();
+    }
+
+    updateGeneratePdfButton() {
+        this.generatePdfButton.disabled = this.capturedImages.length === 0;
+    }
+
+    async generatePDF() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        
+        for (let i = 0; i < this.capturedImages.length; i++) {
+            if (i > 0) {
+                doc.addPage();
             }
-        );
-
-        // Try to start the scanner to test permissions
-        await qrScanner.start();
-        // If successful, stop it until user clicks start
-        qrScanner.stop();
-        
-    } catch (error) {
-        console.error('Scanner initialization error:', error);
-        let errorMessage = 'Could not initialize QR scanner. ';
-        
-        if (error.name === 'NotAllowedError') {
-            errorMessage += 'Please grant camera permission.';
-        } else if (error.name === 'NotFoundError') {
-            errorMessage += 'No camera found on this device.';
-        } else if (error.name === 'NotReadableError') {
-            errorMessage += 'Camera is already in use.';
-        } else if (error.name === 'SecurityError') {
-            errorMessage += 'Camera access is blocked. Please use HTTPS or localhost.';
-        } else {
-            errorMessage += error.message || 'Unknown error occurred.';
+            
+            const img = this.capturedImages[i];
+            const imgProps = doc.getImageProperties(img);
+            const pdfWidth = doc.internal.pageSize.getWidth();
+            const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+            
+            doc.addImage(img, 'JPEG', 0, 0, pdfWidth, pdfHeight);
         }
-        
-        alert(errorMessage);
-        throw error;
+
+        doc.save('scanned_document.pdf');
     }
 }
 
-// Handle scan results
-function handleScanResult(result) {
-    const url = result.data;
-    
-    // Check if the URL ends with .pdf
-    if (url.toLowerCase().endsWith('.pdf')) {
-        pdfViewer.src = url;
-        modal.style.display = 'block';
-        qrScanner.stop(); // Stop scanning when PDF is found
-    } else {
-        alert('Please scan a QR code containing a PDF link');
-    }
-}
-
-// Event Listeners
-startButton.addEventListener('click', async () => {
-    try {
-        if (!qrScanner) {
-            await initializeScanner();
-        }
-        await qrScanner.start();
-        startButton.disabled = true;
-        stopButton.disabled = false;
-    } catch (error) {
-        console.error('Failed to start scanner:', error);
-    }
-});
-
-stopButton.addEventListener('click', () => {
-    if (qrScanner) {
-        qrScanner.stop();
-        startButton.disabled = false;
-        stopButton.disabled = true;
-    }
-});
-
-closeBtn.addEventListener('click', () => {
-    modal.style.display = 'none';
-    pdfViewer.src = ''; // Clear the current PDF
-    qrScanner.start(); // Resume scanning
-});
-
-// Close modal when clicking outside of it
-window.addEventListener('click', (event) => {
-    if (event.target === modal) {
-        modal.style.display = 'none';
-        pdfViewer.src = ''; // Clear the current PDF
-        qrScanner.start(); // Resume scanning
-    }
-});
-
-// Initialize scanner when page loads
-document.addEventListener('DOMContentLoaded', async () => {
-    stopButton.disabled = true; // Initially disable stop button
-    try {
-        await initializeScanner();
-    } catch (error) {
-        startButton.disabled = true;
-        console.error('Failed to initialize scanner:', error);
-    }
+// Initialize the app when the DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+    new DocumentScanner();
 }); 

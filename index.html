@@ -3,188 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QR Scanner for PDFs</title>
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-
-        body {
-            background-color: #f0f2f5;
-            min-height: 100vh;
-            padding: 20px;
-        }
-
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            text-align: center;
-            background: white;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        }
-
-        h1 {
-            color: #1a73e8;
-            margin-bottom: 30px;
-            font-size: 2.2rem;
-        }
-
-        #video {
-            width: 100%;
-            max-width: 500px;
-            height: auto;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-
-        .button-container {
-            display: flex;
-            gap: 15px;
-            justify-content: center;
-            margin-top: 20px;
-        }
-
-        button {
-            padding: 12px 24px;
-            font-size: 1rem;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-weight: 500;
-        }
-
-        #startButton {
-            background-color: #1a73e8;
-            color: white;
-        }
-
-        #startButton:hover {
-            background-color: #1557b0;
-        }
-
-        #stopButton {
-            background-color: #dc3545;
-            color: white;
-        }
-
-        #stopButton:hover {
-            background-color: #bb2d3b;
-        }
-
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.85);
-            z-index: 1000;
-            backdrop-filter: blur(5px);
-        }
-
-        .modal-content {
-            position: relative;
-            margin: auto;
-            padding: 25px;
-            width: 95%;
-            height: 95%;
-            background-color: white;
-            top: 50%;
-            transform: translateY(-50%);
-            border-radius: 12px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-        }
-
-        .close {
-            position: absolute;
-            right: 15px;
-            top: 15px;
-            font-size: 28px;
-            cursor: pointer;
-            width: 40px;
-            height: 40px;
-            background: #f8f9fa;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s ease;
-        }
-
-        .close:hover {
-            background: #e9ecef;
-            transform: scale(1.1);
-        }
-
-        #pdf-viewer {
-            width: 100%;
-            height: 100%;
-            border: none;
-            border-radius: 8px;
-        }
-
-        @media (max-width: 768px) {
-            .container {
-                padding: 20px;
-                margin: 10px;
-            }
-
-            h1 {
-                font-size: 1.8rem;
-            }
-
-            button {
-                padding: 10px 20px;
-            }
-        }
-
-        .status-container {
-            margin: 10px 0;
-            min-height: 20px;
-        }
-
-        #status-message {
-            color: #666;
-            font-size: 0.9rem;
-        }
-
-        button:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
-    </style>
+    <title>Document Scanner</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="container">
-        <h1>QR Code Scanner for PDFs</h1>
-        <video id="video"></video>
-        <div class="status-container">
-            <div id="status-message"></div>
+        <h1>Document Scanner</h1>
+        
+        <div class="scanner-container">
+            <!-- Camera view when active -->
+            <video id="camera-view" autoplay playsinline></video>
+            
+            <!-- Camera controls -->
+            <div class="controls">
+                <button id="start-camera" class="primary-btn">Start Camera</button>
+                <button id="capture-image" class="primary-btn" disabled>Capture</button>
+            </div>
         </div>
-        <div class="button-container">
-            <button id="startButton">Start Scanner</button>
-            <button id="stopButton">Stop Scanner</button>
+
+        <!-- Captured images gallery -->
+        <div class="gallery-container">
+            <h2>Captured Images</h2>
+            <div id="image-gallery" class="image-gallery"></div>
+        </div>
+
+        <!-- PDF generation controls -->
+        <div class="pdf-controls">
+            <button id="generate-pdf" class="primary-btn" disabled>Generate PDF</button>
         </div>
     </div>
 
-    <div id="pdfModal" class="modal">
-        <div class="modal-content">
-            <span class="close">&times;</span>
-            <iframe id="pdf-viewer"></iframe>
-        </div>
-    </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/qr-scanner@1.4.2/qr-scanner.min.js"></script>
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="app.js"></script>
 </body>
-</html> 
+</html>
